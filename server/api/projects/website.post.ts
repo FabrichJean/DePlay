@@ -40,7 +40,7 @@ async function parseRequest(event: Parameters<typeof readBody>[0]): Promise<Pars
 }
 
 export default defineEventHandler(async (event) => {
-  requireUser(event)
+  const userId = currentUserId(event)
 
   const { body, files, fileCount, totalBytes } = await parseRequest(event)
   const isUpload = body.source === 'upload'
@@ -75,6 +75,7 @@ export default defineEventHandler(async (event) => {
         installCommand: body.installCommand ?? '',
         buildCommand: body.buildCommand ?? '',
         outputDirectory: body.outputDirectory?.trim() || '.',
+        ownerId: userId,
         fileCount: isUpload ? fileCount : 0,
         status: 'building',
       },
