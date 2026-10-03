@@ -133,7 +133,7 @@ async function submit() {
       })
     }
   } catch (error) {
-    // Affiche le message renvoyé par l'API (ex. « Upload exceeds 100 MB »), sinon un message générique
+    // Affiche le message renvoyé par l'API (ex. « Upload exceeds 200 MB »), sinon un message générique
     const body = (error as { data?: { statusMessage?: string; data?: { errors?: Record<string, string> } } }).data
     const fieldError = body?.data?.errors ? Object.values(body.data.errors)[0] : undefined
     submitError.value = fieldError ?? body?.statusMessage ?? 'Could not create the project. Please try again.'
