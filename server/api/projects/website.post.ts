@@ -52,7 +52,7 @@ export default defineEventHandler(async (event) => {
   if (isUpload) {
     if (fileCount === 0) errors.files = 'Add at least one file or folder.'
     if (totalBytes > MAX_UPLOAD_BYTES) {
-      throw createError({ statusCode: 413, statusMessage: 'Upload exceeds 100 MB', data: { errors: { files: 'Upload exceeds 100 MB.' } } })
+      throw createError({ statusCode: 413, statusMessage: 'Upload exceeds 200 MB', data: { errors: { files: 'Upload exceeds 200 MB.' } } })
     }
   } else {
     if (!body.repository) errors.repository = 'Choose a repository.'
