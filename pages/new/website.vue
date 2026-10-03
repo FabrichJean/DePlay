@@ -5,7 +5,7 @@ import type { CreatedProject, WebsiteProjectInput } from '~/types/website'
 useHead({ title: 'New website · Deplay' })
 
 const NAME_PATTERN = /^[a-z0-9-]{3,40}$/
-const MAX_UPLOAD_BYTES = 100 * 1024 * 1024
+const MAX_UPLOAD_BYTES = 200 * 1024 * 1024
 
 const form = reactive<WebsiteProjectInput>({
   name: '',
