@@ -58,7 +58,34 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Invalid website project', data: { errors } })
   }
 
-  // Pas encore de persistance : on renvoie la ressource telle qu'elle serait créée
-  setResponseStatus(event, 201)
-  return { id: body.name!, name: body.name!, fileCount: isUpload ? fileCount : undefined }
+  try {
+    const row = await prisma.project.create({
+      data: {
+        name: body.name!,
+        source: isUpload ? 'upload' : 'git',
+        repository: body.repository ?? '',
+        branch: body.branch?.trim() || 'main',
+        preset: body.preset!,
+        rootDirectory: body.rootDirectory?.trim() || './',
+        installCommand: body.installCommand ?? '',
+        buildCommand: body.buildCommand ?? '',
+        outputDirectory: body.outputDirectory?.trim() || '.',
+        fileCount: isUpload ? fileCount : 0,
+        status: 'building',
+      },
+    })
+
+    setResponseStatus(event, 201)
+    return { id: row.id, name: row.name, fileCount: isUpload ? fileCount : undefined }
+  } catch (error) {
+    // P2002 : contrainte d'unicité violée, le nom est déjà pris
+    if ((error as { code?: string }).code === 'P2002') {
+      throw createError({
+        statusCode: 409,
+        statusMessage: 'Project name already taken',
+        data: { errors: { name: 'A project with this name already exists.' } },
+      })
+    }
+    throw error
+  }
 })
