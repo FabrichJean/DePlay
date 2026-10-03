@@ -6,12 +6,6 @@ useHead({ title: 'New website · Deplay' })
 
 const NAME_PATTERN = /^[a-z0-9-]{3,40}$/
 
-const STEPS = [
-  { key: 'repository', label: 'Import repository' },
-  { key: 'configure', label: 'Configure' },
-  { key: 'review', label: 'Review & deploy' },
-]
-
 const form = reactive<WebsiteProjectInput>({
   name: '',
   repository: '',
@@ -28,6 +22,24 @@ const errors = ref<Partial<Record<keyof WebsiteProjectInput, string>>>({})
 const submitting = ref(false)
 const submitError = ref('')
 const created = ref<CreatedProject | null>(null)
+
+// Résumé affiché sous chaque étape terminée
+const steps = computed(() => {
+  const presetLabel = PRESETS.find((item) => item.value === form.preset)?.label ?? form.preset
+  return [
+    {
+      key: 'repository',
+      label: 'Import repository',
+      summary: form.repository ? `${form.repository} · ${form.branch}` : '',
+    },
+    {
+      key: 'configure',
+      label: 'Configure',
+      summary: `${form.name || '—'} · ${presetLabel}`,
+    },
+    { key: 'review', label: 'Review & deploy' },
+  ]
+})
 
 // Changer de framework remplit les commandes par défaut
 watch(
@@ -62,7 +74,7 @@ function validateStep(step: number): boolean {
 
 function next() {
   if (!validateStep(current.value)) return
-  current.value = Math.min(current.value + 1, STEPS.length - 1)
+  current.value = Math.min(current.value + 1, steps.value.length - 1)
 }
 
 function back() {
@@ -80,7 +92,7 @@ function goTo(step: number) {
 async function submit() {
   submitError.value = ''
   // Revalide tout le parcours avant l'envoi, au cas où une étape a été modifiée
-  for (let step = 0; step < STEPS.length - 1; step++) {
+  for (let step = 0; step < steps.value.length - 1; step++) {
     if (!validateStep(step)) {
       current.value = step
       return
@@ -108,7 +120,7 @@ async function submit() {
       Back to projects
     </NuxtLink>
 
-    <header class="head">
+    <header class="head-main">
       <span class="head-icon"><AppIcon name="globe" :size="22" /></span>
       <div>
         <h1>Create a website</h1>
@@ -124,12 +136,18 @@ async function submit() {
     </section>
 
     <template v-else>
-      <WizardStepper :steps="STEPS" :current="current" @go="goTo" />
-
-      <section class="card panel">
-        <StepRepository v-if="current === 0" :form="form" :error="errors.repository || errors.branch" />
-        <StepConfigure v-else-if="current === 1" :form="form" :errors="errors" />
-        <StepReview v-else :form="form" @edit="goTo" />
+      <section class="card">
+        <WizardStepper :steps="steps" :current="current" @go="goTo">
+          <template #step-repository>
+            <StepRepository :form="form" :error="errors.repository || errors.branch" />
+          </template>
+          <template #step-configure>
+            <StepConfigure :form="form" :errors="errors" />
+          </template>
+          <template #step-review>
+            <StepReview :form="form" @edit="goTo" />
+          </template>
+        </WizardStepper>
       </section>
 
       <p v-if="submitError" class="banner">{{ submitError }}</p>
@@ -139,7 +157,7 @@ async function submit() {
         <button v-else type="button" class="btn" @click="back">Back</button>
 
         <button
-          v-if="current < STEPS.length - 1"
+          v-if="current < steps.length - 1"
           type="button"
           class="btn btn-primary"
           @click="next"
@@ -181,7 +199,7 @@ async function submit() {
   color: var(--text);
 }
 
-.head {
+.head-main {
   display: flex;
   align-items: center;
   gap: 16px;
@@ -214,10 +232,6 @@ h1 {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-}
-
-.panel {
-  min-height: 360px;
 }
 
 .banner {
