@@ -1,5 +1,6 @@
 import type { FrameworkPreset, WebsiteProjectInput } from '../../../types/website'
 import type { StoredFile } from '../../utils/project-storage'
+import { isReservedName } from '../../../constants/reserved-names'
 
 const PRESETS: FrameworkPreset[] = ['nuxt', 'next', 'vite', 'static']
 const NAME_PATTERN = /^[a-z0-9-]{3,40}$/
@@ -47,6 +48,7 @@ export default defineEventHandler(async (event) => {
 
   const errors: Partial<Record<keyof WebsiteProjectInput | 'files', string>> = {}
   if (!body.name || !NAME_PATTERN.test(body.name)) errors.name = 'Use 3–40 lowercase letters, digits or dashes.'
+  else if (isReservedName(body.name)) errors.name = 'This name is reserved. Choose another one.'
   if (!body.preset || !PRESETS.includes(body.preset)) errors.preset = 'Choose a framework preset.'
 
   if (isUpload) {
