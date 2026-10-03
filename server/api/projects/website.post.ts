@@ -1,4 +1,5 @@
 import type { FrameworkPreset, WebsiteProjectInput } from '../../../types/website'
+import type { StoredFile } from '../../utils/project-storage'
 
 const PRESETS: FrameworkPreset[] = ['nuxt', 'next', 'vite', 'static']
 const NAME_PATTERN = /^[a-z0-9-]{3,40}$/
@@ -6,6 +7,7 @@ const MAX_UPLOAD_BYTES = 100 * 1024 * 1024
 
 interface ParsedRequest {
   body: Partial<WebsiteProjectInput>
+  files: StoredFile[]
   fileCount: number
   totalBytes: number
 }
@@ -15,7 +17,7 @@ async function parseRequest(event: Parameters<typeof readBody>[0]): Promise<Pars
   const contentType = getHeader(event, 'content-type') ?? ''
 
   if (!contentType.includes('multipart/form-data')) {
-    return { body: await readBody<Partial<WebsiteProjectInput>>(event), fileCount: 0, totalBytes: 0 }
+    return { body: await readBody<Partial<WebsiteProjectInput>>(event), files: [], fileCount: 0, totalBytes: 0 }
   }
 
   const parts = (await readMultipartFormData(event)) ?? []
@@ -28,18 +30,19 @@ async function parseRequest(event: Parameters<typeof readBody>[0]): Promise<Pars
     throw createError({ statusCode: 400, statusMessage: 'Invalid configuration payload' })
   }
 
-  const files = parts.filter((part) => part.name === 'files' && part.filename)
+  const uploads = parts.filter((part) => part.name === 'files' && part.filename)
   return {
     body,
-    fileCount: files.length,
-    totalBytes: files.reduce((sum, file) => sum + file.data.length, 0),
+    files: uploads.map((file) => ({ path: file.filename!, data: file.data })),
+    fileCount: uploads.length,
+    totalBytes: uploads.reduce((sum, file) => sum + file.data.length, 0),
   }
 }
 
 export default defineEventHandler(async (event) => {
   requireUser(event)
 
-  const { body, fileCount, totalBytes } = await parseRequest(event)
+  const { body, files, fileCount, totalBytes } = await parseRequest(event)
   const isUpload = body.source === 'upload'
 
   const errors: Partial<Record<keyof WebsiteProjectInput | 'files', string>> = {}
@@ -76,6 +79,17 @@ export default defineEventHandler(async (event) => {
         status: 'building',
       },
     })
+
+    // Les fichiers sont écrits après la ligne en base ; en cas d'échec, on annule les deux
+    if (isUpload) {
+      try {
+        await writeProjectFiles(row.name, files)
+      } catch (error) {
+        await prisma.project.delete({ where: { id: row.id } })
+        await removeProjectFiles(row.name)
+        throw error
+      }
+    }
 
     setResponseStatus(event, 201)
     return { id: row.id, name: row.name, fileCount: isUpload ? fileCount : undefined }
