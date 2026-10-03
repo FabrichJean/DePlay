@@ -1,0 +1,26 @@
+[Unit]
+Description=Deplay build worker
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=deplay
+Group=deplay
+WorkingDirectory=/opt/deplay
+EnvironmentFile=/opt/deplay/.env
+Environment=NODE_ENV=production BUILD_ISOLATION=docker
+ExecStart=/usr/bin/node /opt/deplay/worker/build-worker.mjs
+# Arrêt propre : le worker arrête ses sites publiés avant de quitter
+KillSignal=SIGTERM
+TimeoutStopSec=30
+Restart=on-failure
+RestartSec=5
+
+NoNewPrivileges=true
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/deplay/prisma /opt/deplay/storage
+
+[Install]
+WantedBy=multi-user.target

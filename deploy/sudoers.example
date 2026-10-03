@@ -1,0 +1,7 @@
+# Droits sudo minimaux pour le worker : une seule commande, sans mot de passe.
+# À placer dans /etc/sudoers.d/deplay (éditer avec : sudo visudo -f /etc/sudoers.d/deplay)
+#
+#   deplay ALL=(root) NOPASSWD: /opt/deplay/deploy/nginx-site.sh
+#
+# Le script valide lui-même le nom, le port et les dossiers. Ne jamais donner
+# de droits plus larges (pas de ALL, pas de shell, pas de nginx directement).
