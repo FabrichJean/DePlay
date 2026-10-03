@@ -11,6 +11,8 @@ datasource db {
 // validées côté serveur (voir types/project.ts et types/website.ts).
 model Project {
   id              String   @id @default(cuid())
+  /// Identifiant Clerk de l'utilisateur propriétaire (null = projet sans propriétaire, invisible)
+  ownerId         String?
   name            String   @unique
   description     String   @default("")
   url             String   @default("")

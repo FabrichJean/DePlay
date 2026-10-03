@@ -7,7 +7,7 @@
 import { PrismaClient } from '@prisma/client'
 import { spawn } from 'node:child_process'
 import { createReadStream } from 'node:fs'
-import { cp, mkdir, mkdtemp, readdir, rename, rm, stat } from 'node:fs/promises'
+import { cp, mkdir, mkdtemp, readdir, realpath, rename, rm, stat } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { createServer as createNetServer, connect } from 'node:net'
 import { extname, join, resolve, sep } from 'node:path'
@@ -95,11 +95,40 @@ async function updateSteps(deploymentId, mutate) {
 const setStep = (steps, key, status, duration) =>
   steps.map((step) => (step.key === key ? { ...step, status, duration: duration ?? step.duration } : step))
 
+// Environnement minimal pour le code du projet : aucun secret du worker (DATABASE_URL, clés Clerk, CMS…)
+function buildEnv() {
+  return {
+    PATH: process.env.PATH ?? '/usr/bin:/bin',
+    HOME: process.env.HOME ?? '',
+    LANG: process.env.LANG ?? 'en_US.UTF-8',
+    CI: '1',
+    GIT_TERMINAL_PROMPT: '0',
+  }
+}
+
+// Supprime les liens symboliques d'un dossier source : un dépôt ou un upload ne doit pas pointer ailleurs
+async function removeSymlinks(dir, log) {
+  let removed = 0
+  const walk = async (current) => {
+    for (const entry of await readdir(current, { withFileTypes: true })) {
+      const path = join(current, entry.name)
+      if (entry.isSymbolicLink()) {
+        await rm(path, { force: true })
+        removed++
+      } else if (entry.isDirectory()) {
+        await walk(path)
+      }
+    }
+  }
+  await walk(dir)
+  if (removed) log.line(`Removed ${removed} symbolic link${removed > 1 ? 's' : ''} for security`, 'muted')
+}
+
 // Lance une commande et renvoie une erreur si elle échoue ou dépasse le délai
 function run(command, args, { cwd, log }) {
   return new Promise((done, fail) => {
     // GIT_TERMINAL_PROMPT=0 : git échoue au lieu d'attendre un identifiant sur un dépôt inconnu
-    const child = spawn(command, args, { cwd, env: { ...process.env, CI: '1', GIT_TERMINAL_PROMPT: '0' } })
+    const child = spawn(command, args, { cwd, env: buildEnv() })
 
     const timer = setTimeout(() => {
       child.kill('SIGKILL')
@@ -177,6 +206,14 @@ async function serveFile(root, req, res) {
     return
   }
 
+  // Un lien symbolique ne doit jamais faire sortir le site de son dossier publié
+  const rootReal = await realpath(root).catch(() => root)
+  const fileReal = await realpath(file).catch(() => null)
+  if (fileReal && fileReal !== rootReal && !fileReal.startsWith(rootReal + sep)) {
+    res.writeHead(404).end('Not found')
+    return
+  }
+
   let info = await stat(file).catch(() => null)
   if (info?.isDirectory()) {
     file = join(file, 'index.html')
@@ -210,7 +247,7 @@ async function publish(deploymentId, outDir, log, preferredPort) {
     log.line(`Starting server on port ${port}`)
     const child = spawn(process.execPath, [nitroEntry], {
       cwd: outDir,
-      env: { ...process.env, PORT: String(port), HOST: '127.0.0.1' },
+      env: { ...buildEnv(), PORT: String(port), HOST: '127.0.0.1' },
       stdio: 'ignore',
     })
     stop = async () => child.kill()
@@ -272,6 +309,32 @@ async function releasePreviousPort(projectId, currentId, log) {
   return port
 }
 
+// Dossier de build complet (créé par mkdtemp) qui contient un dossier publié, ex. « builds/app-x1y2/dist »
+function buildRootOf(dir) {
+  const root = resolve(dir)
+  if (!root.startsWith(BUILDS_DIR + sep)) return ''
+  return join(BUILDS_DIR, root.slice(BUILDS_DIR.length + 1).split(sep)[0])
+}
+
+// Après un redéploiement réussi : supprime les anciens builds du projet, qui ne sont plus servis
+async function removePreviousBuilds(projectId, currentId, currentRoot, log) {
+  if (!projectId) return
+
+  const previous = await prisma.deployment.findMany({
+    where: { projectId, id: { not: currentId } },
+    select: { id: true, buildDir: true, logs: true },
+  })
+
+  for (const row of previous) {
+    const root = buildRootOf(row.buildDir || buildDirFromLogs(row.logs))
+    if (!root || root === currentRoot) continue
+
+    await rm(root, { recursive: true, force: true })
+    await prisma.deployment.update({ where: { id: row.id }, data: { buildDir: '' } })
+    log.line(`Removed previous build ${root}`)
+  }
+}
+
 // Construit un déploiement et le publie, ou le marque comme échoué
 async function build(deployment) {
   const started = Date.now()
@@ -301,6 +364,8 @@ async function build(deployment) {
       })
     }
 
+    await removeSymlinks(workDir, log)
+
     // 2. Installer et construire, dans le dossier racine du projet
     const appDir = resolve(workDir, project.rootDirectory || '.')
     if (appDir !== workDir && !appDir.startsWith(workDir + sep)) throw new Error('root directory is outside the project')
@@ -326,6 +391,7 @@ async function build(deployment) {
     const previousPort = await releasePreviousPort(deployment.projectId, deployment.id, log)
     const url = await publish(deployment.id, outDir, log, previousPort)
     log.line(`Live at ${url}`, 'success')
+    await removePreviousBuilds(deployment.projectId, deployment.id, workDir, log)
 
     // 4. Terminé
     const duration = formatDuration(Date.now() - started)
