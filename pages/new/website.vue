@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { PRESETS } from '~/constants/presets'
-import { isReservedName } from '~/constants/reserved-names'
 import type { CreatedProject, WebsiteProjectInput } from '~/types/website'
 
 useHead({ title: 'New website · Deplay' })
@@ -82,7 +81,6 @@ function validateStep(step: number): boolean {
 
   if (step === 1) {
     if (!NAME_PATTERN.test(form.name)) result.name = 'Use 3–40 lowercase letters, digits or dashes.'
-    else if (isReservedName(form.name)) result.name = 'This name is reserved. Choose another one.'
     if (!form.rootDirectory.trim()) result.rootDirectory = 'Root directory is required.'
     if (!form.outputDirectory.trim()) result.outputDirectory = 'Output directory is required.'
   }
