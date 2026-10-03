@@ -33,6 +33,7 @@ watch(
     terminal.value?.scrollTo({ top: terminal.value.scrollHeight })
   },
 )
+
 const plainText = computed(() =>
   props.lines.map((line) => `[${line.time}] ${line.message}`).join('\n'),
 )
@@ -73,7 +74,7 @@ async function copyLogs() {
       </div>
     </div>
 
-    <div class="terminal" role="tabpanel">
+    <div ref="terminal" class="terminal" role="tabpanel">
       <template v-if="activeTab === 'logs'">
         <div
           v-for="(line, index) in lines"
@@ -98,6 +99,8 @@ async function copyLogs() {
 
 <style scoped>
 .logs-card {
+  width: 100%;
+  min-width: 0;
   padding: 0;
   overflow: hidden;
 }
@@ -146,12 +149,17 @@ async function copyLogs() {
 }
 
 .terminal {
-  min-height: 260px;
+  width: 100%;
+  min-width: 0;
+  /* La largeur ne dépend que du conteneur, jamais du contenu des logs ou de l'onglet actif */
+  contain: inline-size;
+  height: 320px;
   padding: 18px 20px;
   font-family: var(--font-mono);
   font-size: 13px;
   line-height: 1.9;
   background: #080c10;
+  overflow-y: auto;
   overflow-x: auto;
 }
 
