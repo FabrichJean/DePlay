@@ -35,6 +35,17 @@ const CLONE_IMAGE = process.env.CLONE_IMAGE ?? 'alpine/git'
 const BUILD_MEMORY = process.env.BUILD_MEMORY ?? '2g'
 const BUILD_CPUS = process.env.BUILD_CPUS ?? '2'
 const BUILD_PIDS = process.env.BUILD_PIDS ?? '512'
+
+// Mode d'URL : « port » (développement, http://localhost:<port>) ou « subdomain » (VPS, https://<nom>.<domaine>)
+const SITE_MODE = process.env.SITE_MODE ?? 'port'
+if (!['port', 'subdomain'].includes(SITE_MODE)) {
+  console.error('SITE_MODE must be "port" or "subdomain"')
+  process.exit(1)
+}
+const SITE_DOMAIN = process.env.SITE_DOMAIN ?? 'fabrich.site'
+const SITES_DIR = resolve(process.env.DEPLOY_SITES_DIR ?? '/www/wwwroot/deplay-sites')
+const SITE_SCRIPT = process.env.NGINX_SITE_SCRIPT ?? '/opt/deplay/deploy/nginx-site.sh'
+const VHOST_DIR = process.env.NGINX_VHOST_DIR ?? '/www/server/panel/vhost/nginx'
 // Utilisateur du conteneur : jamais root, même si le worker l'est
 const SANDBOX_UID = process.getuid && process.getuid() !== 0 ? process.getuid() : 10001
 const SANDBOX_GID = process.getgid && process.getgid() !== 0 ? process.getgid() : 10001
@@ -282,7 +293,81 @@ async function serveFile(root, req, res) {
 }
 
 // Publie le dossier de sortie : serveur Nitro (Nuxt) s'il existe, sinon fichiers statiques
-async function publish(deploymentId, outDir, log, preferredPort) {
+// Appelle le script nginx en root via sudo (une seule commande autorisée, voir deploy/sudoers.example)
+function nginxSite(args) {
+  return new Promise((done, fail) => {
+    const child = spawn('sudo', ['-n', SITE_SCRIPT, ...args], { env: buildEnv() })
+    let stderr = ''
+    child.stderr.on('data', (chunk) => (stderr += chunk))
+    child.on('error', fail)
+    child.on('close', (code) => (code === 0 ? done() : fail(new Error(stderr.trim() || `nginx-site exited with ${code}`))))
+  })
+}
+
+// Port libre tiré dans une plage (pour les serveurs Nitro en mode subdomain : 8100 à 9999)
+async function freePortInRange(min, max) {
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const port = min + Math.floor(Math.random() * (max - min + 1))
+    if (await portIsFree(port)) return port
+  }
+  throw new Error(`no free port between ${min} and ${max}`)
+}
+
+// Publie un déploiement. En mode subdomain, nginx sert le site sous https://<nom>.<domaine>.
+async function publish(deploymentId, outDir, log, preferredPort, siteName) {
+  if (SITE_MODE === 'subdomain') return publishSubdomain(deploymentId, outDir, log, siteName)
+  return publishLocal(deploymentId, outDir, log, preferredPort)
+}
+
+async function publishSubdomain(deploymentId, outDir, log, name) {
+  const url = `https://${name}.${SITE_DOMAIN}`
+  const nitroEntry = join(outDir, 'server', 'index.mjs')
+  const isServer = await stat(nitroEntry).then(
+    () => true,
+    () => false,
+  )
+
+  if (!isServer) {
+    // Site statique : copie lisible par nginx (utilisateur www), puis configuration nginx
+    const target = join(SITES_DIR, name)
+    await rm(target, { recursive: true, force: true })
+    await cp(outDir, target, { recursive: true })
+    await run('chmod', ['-R', 'u+rwX,go+rX', target], { cwd: SITES_DIR, log })
+    await nginxSite(['install-static', name, target])
+    log.line(`Published static site at ${url}`, 'success')
+
+    running.set(deploymentId, {
+      stop: async () => {},
+      dir: outDir,
+      cleanup: async () => {
+        await nginxSite(['remove', name])
+        await rm(target, { recursive: true, force: true })
+      },
+    })
+    return url
+  }
+
+  // Site serveur : Nitro écoute en local, nginx fait le relais vers le port interne
+  const port = await freePortInRange(8100, 9999)
+  log.line(`Starting server on port ${port}`)
+  const child = spawn(process.execPath, [nitroEntry], {
+    cwd: outDir,
+    env: { ...buildEnv(), PORT: String(port), HOST: '127.0.0.1' },
+    stdio: 'ignore',
+  })
+  await waitForPort(port)
+  await nginxSite(['install-node', name, String(port)])
+  log.line(`Published server at ${url}`, 'success')
+
+  running.set(deploymentId, {
+    stop: async () => child.kill(),
+    dir: outDir,
+    cleanup: async () => nginxSite(['remove', name]),
+  })
+  return url
+}
+
+async function publishLocal(deploymentId, outDir, log, preferredPort) {
   // Garde le même port si possible, pour que l'URL d'un site survive à un redémarrage
   const port = preferredPort && (await portIsFree(preferredPort)) ? preferredPort : await freePort()
   const nitroEntry = join(outDir, 'server', 'index.mjs')
@@ -447,7 +532,7 @@ async function build(deployment) {
     }
 
     const previousPort = await releasePreviousPort(deployment.projectId, deployment.id, log)
-    const url = await publish(deployment.id, outDir, log, previousPort)
+    const url = await publish(deployment.id, outDir, log, previousPort, project.name)
     log.line(`Live at ${url}`, 'success')
     await removePreviousBuilds(deployment.projectId, deployment.id, workDir, log)
 
@@ -503,7 +588,7 @@ async function restoreDeployments() {
       if (!isDirectory) throw new Error('build output is gone')
 
       const previousPort = row.url ? Number(new URL(row.url).port) : undefined
-      const url = await publish(row.id, dir, log, previousPort)
+      const url = await publish(row.id, dir, log, previousPort, row.name)
       log.line(`Restored after worker restart at ${url}`, 'success')
 
       await prisma.deployment.update({ where: { id: row.id }, data: { url, buildDir: dir } })
@@ -522,14 +607,34 @@ async function restoreDeployments() {
 
 // Arrête les sites dont le déploiement a été supprimé (ex. projet supprimé depuis l'API)
 async function reconcileRunning() {
-  for (const [deploymentId, { stop, dir }] of [...running.entries()]) {
+  for (const [deploymentId, { stop, dir, cleanup }] of [...running.entries()]) {
     const exists = await prisma.deployment.findUnique({ where: { id: deploymentId }, select: { id: true } })
     if (exists) continue
 
     await stop()
+    if (cleanup) await cleanup()
     running.delete(deploymentId)
     await rm(dir, { recursive: true, force: true })
     console.log(`[${clock()}] Stopped site for deleted deployment ${deploymentId}`)
+  }
+}
+
+// Supprime les configurations nginx de projets supprimés (le worker est le seul à appeler sudo)
+async function cleanupOrphanSites() {
+  if (SITE_MODE !== 'subdomain') return
+
+  const files = await readdir(VHOST_DIR).catch(() => [])
+  for (const file of files) {
+    const match = /^deplay-([a-z0-9-]{3,40})\.conf$/.exec(file)
+    if (!match) continue
+
+    const name = match[1]
+    const exists = await prisma.project.findUnique({ where: { name }, select: { id: true } })
+    if (exists) continue
+
+    await nginxSite(['remove', name])
+    await rm(join(SITES_DIR, name), { recursive: true, force: true })
+    console.log(`[${clock()}] Removed nginx configuration of deleted project ${name}`)
   }
 }
 
@@ -540,6 +645,7 @@ async function main() {
 
   for (;;) {
     await reconcileRunning()
+    await cleanupOrphanSites().catch((error) => console.warn(`[${clock()}] nginx cleanup failed: ${error.message}`))
 
     const next = await prisma.deployment.findFirst({
       where: { status: 'building', ...(ONLY_DEPLOYMENT ? { id: ONLY_DEPLOYMENT } : {}) },
