@@ -154,11 +154,32 @@ async function chownTree(dir) {
 function dockerArgs({ image, name, workDir, cwd, command, args }) {
   const inside = cwd === workDir ? '/work' : `/work/${cwd.slice(workDir.length + 1)}`
   return [
+    'run', '--rm', '--name', name,
+    '--user', `${SANDBOX_UID}:${SANDBOX_GID}`,
+    '--cap-drop', 'ALL',
+    '--security-opt', 'no-new-privileges',
+    '--read-only', '--tmpfs', '/tmp:rw,exec,nosuid,size=1g',
+    '--memory', BUILD_MEMORY, '--memory-swap', BUILD_MEMORY,
+    '--cpus', BUILD_CPUS, '--pids-limit', BUILD_PIDS,
+    '-v', `${workDir}:/work`, '-w', inside,
+    '-e', 'HOME=/tmp', '-e', 'CI=1', '-e', 'GIT_TERMINAL_PROMPT=0', '-e', 'LANG=C.UTF-8',
+    '--entrypoint', command, image, ...args,
+  ]
+}
+
+// Lance une commande et renvoie une erreur si elle échoue ou dépasse le délai.
+// `sandbox` ({ image, workDir }) l'exécute dans un conteneur quand l'isolation est active.
+function run(command, args, { cwd, log, sandbox }) {
   return new Promise((done, fail) => {
+    const isolated = sandbox && ISOLATION === 'docker'
+    const name = `deplay-build-${randomBytes(6).toString('hex')}`
     // GIT_TERMINAL_PROMPT=0 : git échoue au lieu d'attendre un identifiant sur un dépôt inconnu
-    const child = spawn(command, args, { cwd, env: buildEnv() })
+    const child = isolated
+      ? spawn('docker', dockerArgs({ image: sandbox.image, name, workDir: sandbox.workDir, cwd, command, args }), { env: buildEnv() })
+      : spawn(command, args, { cwd, env: buildEnv() })
 
     const timer = setTimeout(() => {
+      if (isolated) spawn('docker', ['kill', name], { stdio: 'ignore' })
       child.kill('SIGKILL')
       fail(new Error(`timed out after ${COMMAND_TIMEOUT_MS / 60000} minutes`))
     }, COMMAND_TIMEOUT_MS)
@@ -386,9 +407,11 @@ async function build(deployment) {
     } else {
       if (!/^[\w.-]+\/[\w.-]+$/.test(project.repository)) throw new Error(`invalid repository "${project.repository}"`)
       log.line(`Cloning ${project.repository} (${project.branch})`)
+      await chownTree(workDir)
       await run('git', ['clone', '--depth', '1', '--branch', project.branch, `https://github.com/${project.repository}.git`, '.'], {
         cwd: workDir,
         log,
+        sandbox: { image: CLONE_IMAGE, workDir },
       })
     }
 
@@ -398,13 +421,20 @@ async function build(deployment) {
     const appDir = resolve(workDir, project.rootDirectory || '.')
     if (appDir !== workDir && !appDir.startsWith(workDir + sep)) throw new Error('root directory is outside the project')
 
+    const sandbox = { image: BUILD_IMAGE, workDir }
+    if (ISOLATION === 'docker') {
+      await chownTree(workDir)
+      log.line(`Isolation: Docker (${BUILD_IMAGE}, ${BUILD_MEMORY} RAM, ${BUILD_CPUS} CPU)`, 'muted')
+    } else {
+      log.line('Isolation: none (commands run on the host)', 'muted')
+    }
     if (project.installCommand) {
       log.line(`$ ${project.installCommand}`)
-      await run('sh', ['-c', project.installCommand], { cwd: appDir, log })
+      await run('sh', ['-c', project.installCommand], { cwd: appDir, log, sandbox })
     }
     if (project.buildCommand) {
       log.line(`$ ${project.buildCommand}`)
-      await run('sh', ['-c', project.buildCommand], { cwd: appDir, log })
+      await run('sh', ['-c', project.buildCommand], { cwd: appDir, log, sandbox })
     }
     await updateSteps(deployment.id, (steps) => setStep(setStep(steps, 'build', 'done', formatDuration(Date.now() - started)), 'test', 'done', '—'))
 
