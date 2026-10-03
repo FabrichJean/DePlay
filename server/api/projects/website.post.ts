@@ -3,7 +3,7 @@ import type { StoredFile } from '../../utils/project-storage'
 
 const PRESETS: FrameworkPreset[] = ['nuxt', 'next', 'vite', 'static']
 const NAME_PATTERN = /^[a-z0-9-]{3,40}$/
-const MAX_UPLOAD_BYTES = 100 * 1024 * 1024
+const MAX_UPLOAD_BYTES = 200 * 1024 * 1024
 
 interface ParsedRequest {
   body: Partial<WebsiteProjectInput>
