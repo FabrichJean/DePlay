@@ -1,6 +1,6 @@
 // Relance le build d'un projet : crée un nouveau déploiement en attente, que le worker traite
 export default defineEventHandler(async (event) => {
-  requireUser(event)
+  const userId = currentUserId(event)
 
   const id = getRouterParam(event, 'id')
   const project = id ? await prisma.project.findUnique({ where: { id } }) : null
@@ -8,6 +8,7 @@ export default defineEventHandler(async (event) => {
   if (!project) {
     throw createError({ statusCode: 404, statusMessage: 'Project not found' })
   }
+  assertOwner(project, userId)
 
   const inProgress = await prisma.deployment.findFirst({ where: { projectId: project.id, status: 'building' } })
   if (inProgress) {
