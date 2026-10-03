@@ -100,7 +100,8 @@ onBeforeUnmount(stopPolling)
 
 <style scoped>
 .project-page {
-  max-width: 820px;
+  width: 100%;
+  max-width: 1280px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;

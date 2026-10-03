@@ -70,9 +70,10 @@ withDefaults(
 
 /* Page projet : une colonne centrée et compacte */
 .page.is-compact {
-  grid-template-columns: minmax(0, 1fr);
-  max-width: 820px;
   margin: 0 auto;
+  max-width: 750px;
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
 }
 
 .page.is-compact .page-main {
