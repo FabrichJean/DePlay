@@ -34,7 +34,7 @@ const user = {
         </svg>
       </div>
       <div>
-        <p class="brand-name">DeployFlow</p>
+        <p class="brand-name">Deplay</p>
         <p class="brand-tag">Ship your ideas</p>
       </div>
     </div>

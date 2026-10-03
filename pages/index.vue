@@ -2,9 +2,12 @@
 import type { ProjectStatus } from '~/types/project'
 import { STATUS_META } from '~/constants/status'
 
+const { isLoaded, isSignedIn } = useAuth()
 const { data } = await useProjects()
 
-useHead({ title: 'Projects · DeployFlow' })
+useHead({
+  title: () => (isSignedIn.value ? 'Projects · Deplay' : 'Deplay'),
+})
 
 type Filter = 'all' | ProjectStatus
 type SortKey = 'last-updated' | 'name'
@@ -51,7 +54,7 @@ const visibleProjects = computed(() => {
 </script>
 
 <template>
-  <div class="page">
+  <div v-if="isSignedIn" class="page">
     <header class="page-head">
       <div>
         <h1>Projects</h1>
@@ -151,6 +154,8 @@ const visibleProjects = computed(() => {
       </section>
     </div>
   </div>
+
+  <LandingHero v-else-if="isLoaded" />
 </template>
 
 <style scoped>
