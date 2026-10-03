@@ -1,0 +1,4 @@
+# Noms de projet interdits (un ou plusieurs par ligne, # pour les commentaires).
+# Source unique : lue par l'API (server/utils/reserved-names.ts)
+# et par deploy/nginx-site.sh. Ne pas dupliquer cette liste ailleurs.
+deplay app www mail api ftp admin static assets epta
