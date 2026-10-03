@@ -12,6 +12,7 @@ const files = defineModel<File[]>('files', { default: () => [] })
 
 const query = ref('')
 const dragging = ref(false)
+const skipped = ref(0)
 
 const SOURCES: { value: ProjectSource; label: string; description: string }[] = [
   { value: 'git', label: 'Git repository', description: 'Build from a connected repository' },
@@ -53,13 +54,23 @@ function setSource(source: ProjectSource) {
   props.form.source = source
 }
 
+// Dépendances, historiques et caches : inutiles pour le build, et souvent trop lourds
+const IGNORED_SEGMENTS = new Set(['node_modules', '.git', '.nuxt', '.output', '.cache', 'coverage', '.DS_Store'])
+
+function isIgnored(file: File): boolean {
+  return (file.webkitRelativePath || file.name).split('/').some((part) => IGNORED_SEGMENTS.has(part))
+}
+
 function addFiles(list: FileList | File[] | null | undefined) {
   if (!list || !list.length) return
-  const incoming = Array.from(list)
+  const all = Array.from(list)
+  const incoming = all.filter((file) => !isIgnored(file))
+  skipped.value += all.length - incoming.length
+  if (!incoming.length) return
+
   files.value = [...files.value, ...incoming]
   props.form.source = 'upload'
-  const first = incoming[0]
-  suggestName(first.webkitRelativePath || first.name)
+  suggestName(incoming[0].webkitRelativePath || incoming[0].name)
 }
 
 function onDrop(event: DragEvent) {
@@ -164,6 +175,7 @@ function clearFiles() {
       </div>
     </template>
 
+    <p v-if="skipped" class="muted">{{ skipped }} file{{ skipped > 1 ? 's' : '' }} skipped (node_modules, .git, build caches).</p>
     <p v-if="error" class="error">{{ error }}</p>
   </div>
 </template>

@@ -5,6 +5,7 @@ import type { CreatedProject, WebsiteProjectInput } from '~/types/website'
 useHead({ title: 'New website · Deplay' })
 
 const NAME_PATTERN = /^[a-z0-9-]{3,40}$/
+const MAX_UPLOAD_BYTES = 100 * 1024 * 1024
 
 const form = reactive<WebsiteProjectInput>({
   name: '',
@@ -69,7 +70,9 @@ function validateStep(step: number): boolean {
 
   if (step === 0) {
     if (form.source === 'upload') {
+      const totalBytes = uploadedFiles.value.reduce((sum, file) => sum + file.size, 0)
       if (!uploadedFiles.value.length) result.files = 'Add at least one file or folder.'
+      else if (totalBytes > MAX_UPLOAD_BYTES) result.files = 'Uploads are limited to 100 MB. Remove large files and try again.'
     } else {
       if (!form.repository) result.repository = 'Choose a repository to import.'
       if (!form.branch.trim()) result.branch = 'Branch is required.'
@@ -129,8 +132,11 @@ async function submit() {
         body: { ...form },
       })
     }
-  } catch {
-    submitError.value = 'Could not create the project. Please try again.'
+  } catch (error) {
+    // Affiche le message renvoyé par l'API (ex. « Upload exceeds 100 MB »), sinon un message générique
+    const body = (error as { data?: { statusMessage?: string; data?: { errors?: Record<string, string> } } }).data
+    const fieldError = body?.data?.errors ? Object.values(body.data.errors)[0] : undefined
+    submitError.value = fieldError ?? body?.statusMessage ?? 'Could not create the project. Please try again.'
   } finally {
     submitting.value = false
   }
