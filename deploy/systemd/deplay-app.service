@@ -1,0 +1,26 @@
+[Unit]
+Description=Deplay application (Nuxt)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=deplay
+Group=deplay
+WorkingDirectory=/opt/deplay
+# Secrets : /opt/deplay/.env en mode 600, propriétaire deplay
+EnvironmentFile=/opt/deplay/.env
+Environment=NODE_ENV=production PORT=3100 HOST=127.0.0.1
+ExecStart=/usr/bin/node /opt/deplay/.output/server/index.mjs
+Restart=on-failure
+RestartSec=5
+
+# Durcissement : le processus ne peut écrire que dans ses données
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/deplay/prisma /opt/deplay/storage
+
+[Install]
+WantedBy=multi-user.target
