@@ -6,6 +6,18 @@ export default defineNuxtConfig({
   // Nuxt 4 lit app/ par défaut ; on garde la structure à la racine du projet
   srcDir: '.',
 
+  // storage/ contient les fichiers uploadés et les builds du worker (avec leurs node_modules) :
+  // les surveiller épuise les descripteurs de fichiers et provoque des « spawn EBADF »
+  ignore: ['storage/**', 'worker/**', 'prisma/*.db*'],
+  watchers: {
+    chokidar: { ignored: ['**/storage/**', '**/prisma/*.db*'] },
+  },
+  vite: {
+    server: {
+      watch: { ignored: ['**/storage/**', '**/prisma/*.db*'] },
+    },
+  },
+
   // Chaque fichier de components/ est exposé sous son nom seul (ex: AppIcon),
   // sans préfixe de dossier.
   components: [{ path: '~/components', pathPrefix: false }],
