@@ -72,7 +72,7 @@ function validateStep(step: number): boolean {
     if (form.source === 'upload') {
       const totalBytes = uploadedFiles.value.reduce((sum, file) => sum + file.size, 0)
       if (!uploadedFiles.value.length) result.files = 'Add at least one file or folder.'
-      else if (totalBytes > MAX_UPLOAD_BYTES) result.files = 'Uploads are limited to 100 MB. Remove large files and try again.'
+      else if (totalBytes > MAX_UPLOAD_BYTES) result.files = 'Uploads are limited to 200 MB. Remove large files and try again.'
     } else {
       if (!form.repository) result.repository = 'Choose a repository to import.'
       if (!form.branch.trim()) result.branch = 'Branch is required.'
