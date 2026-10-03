@@ -21,7 +21,8 @@ Il ne contient aucun secret : les clés sont dans `.env`, qu'il ne faut ni lire 
 | Auth | `@clerk/nuxt` 3.1.9 (clés de développement pour l'instant) |
 | Base | SQLite via Prisma **6.19** (Prisma 7 non utilisé) — `prisma/dev.db` |
 | Worker | Script Node autonome `worker/build-worker.mjs` (hors Nuxt) |
-| Node | 22 recommandé (certaines dépendances l'exigent) ; 20.20 déclenche des avertissements |
+| Node | 22 requis (certaines dépendances l'exigent) |
+| Docker | isolation des builds (`BUILD_ISOLATION=docker`) |
 | Style | CSS maison, variables dans `assets/css/main.css`, thème bleu |
 
 Commandes :
@@ -106,6 +107,13 @@ Limite d'upload : **200 Mo** (constante dans la route et dans le formulaire).
 **Limite majeure** : les commandes du projet tournent directement sur la machine, avec les droits de l'utilisateur
 (`sh -c`). Un script malveillant peut lire les fichiers de la machine. Voir §8.
 
+
+**Modes de l'URL** (variable `SITE_MODE`) :
+- `port` (développement local) : `http://localhost:<port>`, serveur Node local.
+- `subdomain` (VPS) : `https://<nom>.fabrich.site`. Site statique copié dans `DEPLOY_SITES_DIR/<nom>` (lecture pour `www`), serveur Nitro sur un port 8100–9999, puis `sudo -n nginx-site.sh install-static|install-node`. Le worker supprime aussi les configurations nginx des projets supprimés (`cleanupOrphanSites`).
+
+**Isolation** (`BUILD_ISOLATION`) : `docker` par défaut (clone, install et build dans un conteneur, sans secret) ; `none` uniquement en local.
+
 ## 7. Décisions et contraintes
 
 - **Développement sur Mac, production sur VPS Ubuntu** avec Docker. Le même code doit tourner partout ; seule la configuration change.
@@ -116,67 +124,69 @@ Limite d'upload : **200 Mo** (constante dans la route et dans le formulaire).
 - Ne pas modifier les fichiers que l'utilisateur a changés sur le disque sans le signaler.
 - Les diagnostics de l'éditeur (`Cannot find name 'ref'`, `~/types/...`) sont normaux : les auto-imports Nuxt ne sont connus qu'après un build. Vérifier par `npx nuxi build`.
 
-## 8. Sécurité : état et plan
+## 8. Sécurité : état
 
 **Fait**
-- Routes privées protégées par Clerk ; propriété des projets (`ownerId`).
-- Environnement minimal pour le code du projet.
-- Liens symboliques rejetés (copie/clone et service des fichiers).
-- Chemins d'upload validés (pas de `..`, pas de chemin absolu).
-- Limite de 200 Mo ; dossiers inutiles (`node_modules`, `.git`, `.nuxt`, `.output`, `.cache`, `coverage`) exclus côté client.
-- Noms réservés.
+- Routes privées protégées par Clerk ; propriété des projets (`ownerId`), 404 pour un projet d'un autre utilisateur.
+- Builds dans Docker (`BUILD_ISOLATION=docker`) : conteneur sans privilèges, système de fichiers en lecture seule, seul le dossier de build monté, limites de mémoire, CPU et processus.
+- Environnement minimal pour le code du projet (`buildEnv()`), sans secret du worker.
+- Liens symboliques supprimés après la préparation ; service statique qui refuse les chemins réels hors du dossier publié.
+- Chemins d'upload validés (pas de `..`), limite de 200 Mo, dossiers inutiles exclus.
+- Noms réservés lus dans `config/reserved-names.txt` (source unique, à la création et dans `nginx-site.sh`), plus une vérification nginx à l'exécution.
 
 **À faire**
-1. **Isolation par conteneur Docker** pour les builds (install, build, clone). C'est le point critique : sans lui, le code d'un utilisateur s'exécute avec les droits de la machine.
-   Options : `--network` limité, `--read-only`, `--cap-drop ALL`, `--user` non-root, `--memory`, `--cpus`, `--pids-limit`, dossier de build seul monté.
-2. Installation avec `npm ci --ignore-scripts` si le projet n'en a pas besoin.
-3. En-têtes de sécurité sur les sites servis (`nosniff`, CSP de base, pas de listage de dossiers).
-4. Journaux : filtrer les jetons et clés qui pourraient apparaître dans les logs stockés.
-5. Passer les clés Clerk de développement aux clés de production.
-6. Quotas de taille par projet et par utilisateur.
+1. Limiter le réseau du conteneur de build (aucune restriction pour l'instant : accès Internet complet).
+2. `npm ci --ignore-scripts` si le projet n'en a pas besoin.
+3. En-têtes de sécurité : déjà présents dans les modèles nginx (`nosniff`, `SAMEORIGIN`, `Referrer-Policy`) ; reste à évaluer une CSP.
+4. Filtrer jetons et clés dans les logs enregistrés.
+5. Quotas de taille par projet et par utilisateur.
+6. Docker rootless pour l'utilisateur `deplay` (le groupe `docker` équivaut à root) : étape séparée, non commencée.
 
-## 9. Déploiement VPS (plan, non commencé)
+## 9. Déploiement VPS
 
-- VPS **Ubuntu** avec **Docker** déjà installé. **nginx** déjà en place sur le domaine **fabrich.site**.
-- Application : `deplay.fabrich.site` → nginx → Nuxt sur `127.0.0.1:<port>`, lancé par **systemd**.
-- Worker : second service systemd, utilisateur dédié, sans root.
-- Sites publiés : `<projet>.fabrich.site`. Statique : nginx sert le dossier de sortie (`try_files $uri $uri/ /index.html`).
-  Serveur Nitro : nginx fait `proxy_pass` vers le port interne du conteneur, jamais exposé.
-- Le worker écrit un fichier nginx par projet, valide avec `nginx -t`, recharge nginx. Ces actions root passent par un petit script autorisé dans `sudoers` pour cette seule commande.
-- DNS : enregistrement `*.fabrich.site` vers l'IP du VPS (une seule fois).
-- HTTPS : certificat wildcard (certbot, défi DNS) si le fournisseur DNS a une API, sinon un certificat par sous-domaine (défi HTTP), avec la limite Let's Encrypt à surveiller.
-- Pare-feu : ouvrir seulement 22 (SSH par clé), 80 et 443.
-- Développement local : `SITE_URL_MODE=port|subdomain` (à créer) ; les navigateurs résolvent `*.localhost`.
-- Clerk : ajouter `deplay.fabrich.site` aux origines autorisées ; passer aux clés de production.
-- Sauvegardes : `prisma/dev.db` et `storage/` (à planifier).
+**Serveur** : Ubuntu, Docker 29 (mode classique), nginx géré par aaPanel (`/www/server/nginx`, vhosts dans `/www/server/panel/vhost/nginx/`). Domaine `fabrich.site`.
 
-**Informations manquantes (à demander à l'utilisateur)**
-1. Fournisseur DNS de `fabrich.site` (OVH, Cloudflare, Gandi…) et accès API éventuel.
-2. Configuration nginx actuelle du VPS (`sudo nginx -T`, ou la liste des `server_name`), pour éviter les conflits.
+**Vérifié**
+- Certificat `fabrich.site` couvrant `*.fabrich.site` : pas de certificat par projet.
+- Ports 3100 (application) et 8100–9999 (sites serveur) libres.
+- Utilisateur `deplay` créé (uid 997, nologin, hors du groupe docker).
+- `/opt/deplay` : `prisma/`, `storage/projects/`, `.env` (600, deplay), `config/`, `deploy/` (propriété root).
+- `/www/wwwroot/deplay-sites` : deplay:www, 755.
+- Règle sudo : `deplay ALL=(root) NOPASSWD: /opt/deplay/deploy/nginx-site.sh`.
+- `deplay-app.conf` copié dans vhost ; `nginx -t` OK ; **nginx non rechargé**.
+- Unités systemd copiées dans `/etc/systemd/system/`, **non activées**.
+- Règle ufw 3100/tcp supprimée (inutile).
+
+**Problèmes connus**
+- `/opt/deplay/deploy` et `config/` appartiennent à `deplay` : il pouvait remplacer le script exécuté en root. Correction recommandée : `/opt/deplay` en `root:root`, avec `deplay` propriétaire seulement de `prisma/` et `storage/`. Un `chattr +i` a été posé en attendant.
+- SSH : authentification par mot de passe et `PermitRootLogin yes` encore actifs. Ne pas désactiver avant une connexion par clé testée dans une deuxième session. `99-tunnel.conf` configure des tunnels inverses (ports 4000 et 9865).
+- Le `.env` du VPS pointait vers `/www/wwwroot/DePlay` au lieu de `/opt/deplay`, et contenait des clés de test. Une clé secrète a été montrée en clair dans une capture : elle doit être régénérée.
+- `.output` (build de l'application) et `worker/` ne sont pas encore dans `/opt/deplay`.
+- Docker rootless non installé. Le worker ne doit pas démarrer tant que Docker n'est pas prêt.
+
+**Procédure** : [deploy/README.md](deploy/README.md). Modèle de configuration : [deploy/env.example](deploy/env.example).
 
 ## 10. État fonctionnel
 
-**Fonctionne (vérifié par tests API ou build)**
-- Création de projets Git et upload (JSON et multipart), avec premier déploiement en attente.
-- Worker : build d'un site statique uploadé, publication sur localhost, échec propre sur un dépôt inconnu,
-  reprise après redémarrage, arrêt à la suppression, conservation du port au redéploiement, nettoyage des anciens builds.
-- Redirection après création ; terminal des logs à hauteur fixe avec défilement.
+**Fonctionne (vérifié par tests API, build ou test de worker)**
+- Création de projets Git et upload, avec premier déploiement en attente.
+- Worker en mode `port` : build statique, publication, échec propre, reprise au redémarrage, arrêt à la suppression, port conservé au redéploiement, nettoyage des anciens builds, non-régression après les modifications de mode.
+- Isolation Docker présente dans le code (non testée sur cette machine : Docker installé mais non démarré).
 - Routes privées refusent les appels non connectés (401).
 
-**Pas testé dans un navigateur** (l'utilisateur fait les tests visuels)
-- Tout le parcours d'interface avec session Clerk.
-- Propriété entre deux comptes.
-- Redéploiement complet avec session.
+**Non testé**
+- Mode `subdomain` : demande sudo et nginx sur le VPS.
+- Parcours complet dans le navigateur avec session Clerk, et propriété entre deux comptes.
 
 **Limites connues**
-- Les sites publiés dépendent du worker : si le worker s'arrête, les sites s'arrêtent (ils sont repris au redémarrage).
-- Le worker ne gère que `nuxt` (serveur Nitro) et le statique ; Next.js n'est pas servi en mode serveur.
-- Le dépôt Git doit être public (pas d'identifiants).
-- Le CMS (`eptaadmin-prefetch`) est interrogé pendant le build : le contenu d'un site dépend du CMS au moment du build.
-- Le redéploiement d'un upload réutilise les fichiers stockés : il ne reprend pas un dossier local modifié.
+- Les sites publiés dépendent du worker : arrêt du worker = sites arrêtés (repris au redémarrage).
+- Seuls les sites Nuxt (serveur Nitro) et statiques sont pris en charge.
+- Dépôts Git publics uniquement.
+- Le contenu du CMS (`eptaadmin-prefetch`) est figé au moment du build.
+- Un redéploiement d'upload réutilise les fichiers stockés.
 - Usage du workspace et statistiques : données de démo.
-- Les projets existants sans propriétaire sont invisibles jusqu'à `npm run db:claim -- user_xxx`.
-- Le `package.json` est propre (le caractère parasite a été retiré).
+- Les projets sans propriétaire sont invisibles jusqu'à `npm run db:claim -- user_xxx`.
+- Risque : si le worker du VPS pointe vers une autre base, le nettoyage des configurations nginx supprimera les sites en ligne.
 
 ## 11. Données de test
 
