@@ -8,6 +8,7 @@ const NAME_PATTERN = /^[a-z0-9-]{3,40}$/
 
 const form = reactive<WebsiteProjectInput>({
   name: '',
+  source: 'git',
   repository: '',
   branch: 'main',
   preset: 'nuxt',
@@ -18,7 +19,8 @@ const form = reactive<WebsiteProjectInput>({
 })
 
 const current = ref(0)
-const errors = ref<Partial<Record<keyof WebsiteProjectInput, string>>>({})
+const uploadedFiles = ref<File[]>([])
+const errors = ref<Partial<Record<keyof WebsiteProjectInput | 'files', string>>>({})
 const submitting = ref(false)
 const submitError = ref('')
 const created = ref<CreatedProject | null>(null)
@@ -30,7 +32,7 @@ const steps = computed(() => {
     {
       key: 'repository',
       label: 'Import repository',
-      summary: form.repository ? `${form.repository} · ${form.branch}` : '',
+      summary: sourceSummary(),
     },
     {
       key: 'configure',
@@ -40,6 +42,14 @@ const steps = computed(() => {
     { key: 'review', label: 'Review & deploy' },
   ]
 })
+
+function sourceSummary(): string {
+  if (form.source === 'upload') {
+    const count = uploadedFiles.value.length
+    return count ? `${count} uploaded file${count > 1 ? 's' : ''}` : ''
+  }
+  return form.repository ? `${form.repository} · ${form.branch}` : ''
+}
 
 // Changer de framework remplit les commandes par défaut
 watch(
@@ -58,8 +68,12 @@ function validateStep(step: number): boolean {
   const result: typeof errors.value = {}
 
   if (step === 0) {
-    if (!form.repository) result.repository = 'Choose a repository to import.'
-    if (!form.branch.trim()) result.branch = 'Branch is required.'
+    if (form.source === 'upload') {
+      if (!uploadedFiles.value.length) result.files = 'Add at least one file or folder.'
+    } else {
+      if (!form.repository) result.repository = 'Choose a repository to import.'
+      if (!form.branch.trim()) result.branch = 'Branch is required.'
+    }
   }
 
   if (step === 1) {
@@ -101,10 +115,20 @@ async function submit() {
 
   submitting.value = true
   try {
-    created.value = await $fetch<CreatedProject>('/api/projects/website', {
-      method: 'POST',
-      body: { ...form },
-    })
+    if (form.source === 'upload') {
+      // Multipart : la configuration en JSON + les fichiers, avec leur chemin relatif pour les dossiers
+      const body = new FormData()
+      body.append('config', JSON.stringify({ ...form }))
+      for (const file of uploadedFiles.value) {
+        body.append('files', file, file.webkitRelativePath || file.name)
+      }
+      created.value = await $fetch<CreatedProject>('/api/projects/website', { method: 'POST', body })
+    } else {
+      created.value = await $fetch<CreatedProject>('/api/projects/website', {
+        method: 'POST',
+        body: { ...form },
+      })
+    }
   } catch {
     submitError.value = 'Could not create the project. Please try again.'
   } finally {
@@ -131,7 +155,11 @@ async function submit() {
       <section class="card">
         <WizardStepper :steps="steps" :current="current" @go="goTo">
           <template #step-repository>
-            <StepRepository :form="form" :error="errors.repository || errors.branch" />
+            <StepRepository
+              :form="form"
+              v-model:files="uploadedFiles"
+              :error="errors.repository || errors.branch || errors.files"
+            />
           </template>
           <template #step-configure>
             <StepConfigure :form="form" :errors="errors" />
