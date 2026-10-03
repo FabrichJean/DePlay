@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// SQLite ne gère pas les enums ni le type Json : les valeurs contraintes sont
+// validées côté serveur (voir types/project.ts et types/website.ts).
+model Project {
+  id              String   @id @default(cuid())
+  name            String   @unique
+  description     String   @default("")
+  url             String   @default("")
+  kind            String   @default("none")
+  status          String   @default("building")
+  source          String   @default("git")
+  repository      String   @default("")
+  branch          String   @default("main")
+  preset          String   @default("nuxt")
+  rootDirectory   String   @default("./")
+  installCommand  String   @default("")
+  buildCommand    String   @default("")
+  outputDirectory String   @default(".")
+  fileCount       Int      @default(0)
+  deployments     Int      @default(0)
+  requests        String   @default("0")
+  errorRate       String   @default("0%")
+  /// Valeurs du sparkline séparées par des virgules
+  sparkline       String   @default("")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Déploiement d'une application. Les colonnes complexes sont stockées en JSON texte,
+// car SQLite ne gère pas le type Json.
+model Deployment {
+  id           String   @id @default(cuid())
+  name         String
+  description  String   @default("")
+  type         String   @default("Web Application")
+  runtime      String   @default("Node.js")
+  environment  String   @default("Production")
+  url          String   @default("")
+  branch       String   @default("main")
+  commit       String   @default("")
+  status       String   @default("deployed")
+  deployedAt   String   @default("")
+  duration     String   @default("")
+  steps        String   @default("[]")
+  logs         String   @default("[]")
+  info         String   @default("{}")
+  server       String   @default("{}")
+  metrics      String   @default("[]")
+  createdAt    DateTime @default(now())
+}
