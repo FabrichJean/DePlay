@@ -11,7 +11,7 @@ const confirming = ref(false)
 const deleting = ref(false)
 const deleteError = ref('')
 
-const siteUrl = computed(() => (props.project.url ? `https://${props.project.url}` : ''))
+const siteUrl = computed(() => (props.project.url ? absoluteUrl(props.project.url) : ''))
 
 function close() {
   open.value = false

@@ -1,0 +1,348 @@
+// Worker de build local.
+// Lit les déploiements en attente dans la base, prépare le code, lance install/build,
+// puis publie le résultat sur localhost. Lancer avec : npm run worker
+//
+// Attention : les commandes du projet sont exécutées directement sur cette machine.
+// Ne l'utilisez pas avec du code non fiable sans isolation (conteneur, VM).
+import { PrismaClient } from '@prisma/client'
+import { spawn } from 'node:child_process'
+import { createReadStream } from 'node:fs'
+import { cp, mkdir, mkdtemp, readdir, rename, rm, stat } from 'node:fs/promises'
+import { createServer } from 'node:http'
+import { createServer as createNetServer, connect } from 'node:net'
+import { extname, join, resolve, sep } from 'node:path'
+
+const STORAGE_DIR = process.env.NUXT_PROJECTS_STORAGE_DIR
+if (!STORAGE_DIR) {
+  console.error('NUXT_PROJECTS_STORAGE_DIR is required (set it in .env)')
+  process.exit(1)
+}
+
+const BUILDS_DIR = resolve(process.env.DEPLOY_WORK_DIR ?? './storage/builds')
+// Optionnel : ne traiter qu'un seul déploiement (utile pour les tests)
+const ONLY_DEPLOYMENT = process.env.WORKER_ONLY_DEPLOYMENT_ID
+const COMMAND_TIMEOUT_MS = 10 * 60 * 1000
+const POLL_MS = 3000
+
+const prisma = new PrismaClient()
+// deploymentId -> fonction d'arrêt du serveur publié
+const running = new Map()
+
+const MIME = {
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css',
+  '.js': 'text/javascript',
+  '.mjs': 'text/javascript',
+  '.json': 'application/json',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.ico': 'image/x-icon',
+  '.txt': 'text/plain',
+  '.woff2': 'font/woff2',
+}
+
+const clock = () => new Date().toLocaleTimeString('en-GB', { hour12: false })
+const sleep = (ms) => new Promise((done) => setTimeout(done, ms))
+
+function formatDuration(ms) {
+  const totalSeconds = Math.round(ms / 1000)
+  return `${Math.floor(totalSeconds / 60)}m ${totalSeconds % 60}s`
+}
+
+function deployedLabel() {
+  const date = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  return `${date} • ${new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}`
+}
+
+// Accumule les lignes de log et les écrit par lot, pour ne pas solliciter la base à chaque ligne
+class BuildLog {
+  constructor(deploymentId) {
+    this.id = deploymentId
+    this.queue = []
+    this.timer = setInterval(() => this.flush().catch(() => {}), 1000)
+  }
+
+  line(message, tone = 'default') {
+    this.queue.push({ time: clock(), message: message.slice(0, 300), tone })
+  }
+
+  async flush() {
+    if (!this.queue.length) return
+    const batch = this.queue.splice(0)
+    const row = await prisma.deployment.findUnique({ where: { id: this.id }, select: { logs: true } })
+    await prisma.deployment.update({
+      where: { id: this.id },
+      data: { logs: JSON.stringify([...JSON.parse(row.logs), ...batch]) },
+    })
+  }
+
+  async close() {
+    clearInterval(this.timer)
+    await this.flush()
+  }
+}
+
+async function updateSteps(deploymentId, mutate) {
+  const row = await prisma.deployment.findUnique({ where: { id: deploymentId }, select: { steps: true } })
+  await prisma.deployment.update({
+    where: { id: deploymentId },
+    data: { steps: JSON.stringify(mutate(JSON.parse(row.steps))) },
+  })
+}
+
+const setStep = (steps, key, status, duration) =>
+  steps.map((step) => (step.key === key ? { ...step, status, duration: duration ?? step.duration } : step))
+
+// Lance une commande et renvoie une erreur si elle échoue ou dépasse le délai
+function run(command, args, { cwd, log }) {
+  return new Promise((done, fail) => {
+    // GIT_TERMINAL_PROMPT=0 : git échoue au lieu d'attendre un identifiant sur un dépôt inconnu
+    const child = spawn(command, args, { cwd, env: { ...process.env, CI: '1', GIT_TERMINAL_PROMPT: '0' } })
+
+    const timer = setTimeout(() => {
+      child.kill('SIGKILL')
+      fail(new Error(`timed out after ${COMMAND_TIMEOUT_MS / 60000} minutes`))
+    }, COMMAND_TIMEOUT_MS)
+
+    const forward = (tone) => (chunk) =>
+      chunk
+        .toString()
+        .split('\n')
+        .filter(Boolean)
+        .forEach((line) => log.line(line, tone))
+
+    child.stdout.on('data', forward('default'))
+    child.stderr.on('data', forward('muted'))
+    child.on('error', (error) => {
+      clearTimeout(timer)
+      fail(error)
+    })
+    child.on('close', (code) => {
+      clearTimeout(timer)
+      if (code === 0) done()
+      else fail(new Error(`"${[command, ...args].join(' ')}" exited with code ${code}`))
+    })
+  })
+}
+
+function freePort() {
+  return new Promise((done, fail) => {
+    const probe = createNetServer()
+    probe.on('error', fail)
+    probe.listen(0, '127.0.0.1', () => {
+      const { port } = probe.address()
+      probe.close(() => done(port))
+    })
+  })
+}
+
+// Attend que le port réponde, pour ne renvoyer l'URL qu'une fois le site accessible
+function waitForPort(port, timeoutMs = 15000) {
+  const started = Date.now()
+  return new Promise((done, fail) => {
+    const attempt = () => {
+      const socket = connect(port, '127.0.0.1')
+      socket.once('connect', () => {
+        socket.end()
+        done()
+      })
+      socket.once('error', () => {
+        socket.destroy()
+        if (Date.now() - started > timeoutMs) fail(new Error(`port ${port} did not open in time`))
+        else setTimeout(attempt, 250)
+      })
+    }
+    attempt()
+  })
+}
+
+// Sert un dossier statique ; les routes sans extension retombent sur index.html (SPA)
+async function serveFile(root, req, res) {
+  const pathname = decodeURIComponent((req.url ?? '/').split('?')[0])
+  let file = resolve(root, `.${pathname}`)
+
+  if (file !== root && !file.startsWith(root + sep)) {
+    res.writeHead(403).end()
+    return
+  }
+
+  let info = await stat(file).catch(() => null)
+  if (info?.isDirectory()) {
+    file = join(file, 'index.html')
+    info = await stat(file).catch(() => null)
+  }
+  if (!info && !extname(pathname)) {
+    file = join(root, 'index.html')
+    info = await stat(file).catch(() => null)
+  }
+  if (!info) {
+    res.writeHead(404).end('Not found')
+    return
+  }
+
+  res.writeHead(200, { 'content-type': MIME[extname(file)] ?? 'application/octet-stream' })
+  createReadStream(file).pipe(res)
+}
+
+// Publie le dossier de sortie : serveur Nitro (Nuxt) s'il existe, sinon fichiers statiques
+async function publish(deploymentId, outDir, log) {
+  const port = await freePort()
+  const nitroEntry = join(outDir, 'server', 'index.mjs')
+  const isServer = await stat(nitroEntry).then(
+    () => true,
+    () => false,
+  )
+
+  let stop
+  if (isServer) {
+    log.line(`Starting server on port ${port}`)
+    const child = spawn(process.execPath, [nitroEntry], {
+      cwd: outDir,
+      env: { ...process.env, PORT: String(port), HOST: '127.0.0.1' },
+      stdio: 'ignore',
+    })
+    stop = async () => child.kill()
+  } else {
+    log.line(`Serving static files from ${outDir} on port ${port}`)
+    const server = createServer((req, res) => serveFile(outDir, req, res).catch(() => res.writeHead(500).end()))
+    await new Promise((done) => server.listen(port, '127.0.0.1', done))
+    stop = () => new Promise((done) => server.close(done))
+  }
+
+  running.set(deploymentId, stop)
+  await waitForPort(port)
+  return `http://localhost:${port}`
+}
+
+// Un dossier uploadé arrive avec son nom en racine (« mada/index.html ») : on remonte son contenu,
+// pour que index.html, package.json et les commandes se trouvent à la racine du projet
+async function flattenSingleFolder(dir) {
+  for (;;) {
+    const entries = await readdir(dir, { withFileTypes: true })
+    if (entries.length !== 1 || !entries[0].isDirectory()) return
+
+    const inner = join(dir, entries[0].name)
+    const staging = `${inner}.staging`
+    await rename(inner, staging)
+    for (const entry of await readdir(staging)) {
+      await rename(join(staging, entry), join(dir, entry))
+    }
+    await rm(staging, { recursive: true, force: true })
+  }
+}
+
+// Construit un déploiement et le publie, ou le marque comme échoué
+async function build(deployment) {
+  const started = Date.now()
+  const log = new BuildLog(deployment.id)
+
+  try {
+    const project = deployment.projectId
+      ? await prisma.project.findUnique({ where: { id: deployment.projectId } })
+      : null
+    if (!project) throw new Error('deployment is not linked to a project')
+
+    await mkdir(BUILDS_DIR, { recursive: true })
+    const workDir = await mkdtemp(join(BUILDS_DIR, `${project.name}-`))
+    log.line(`Working directory: ${workDir}`)
+
+    // 1. Préparer le code
+    if (project.source === 'upload') {
+      log.line('Copying uploaded files')
+      await cp(join(STORAGE_DIR, project.name), workDir, { recursive: true })
+      await flattenSingleFolder(workDir)
+    } else {
+      if (!/^[\w.-]+\/[\w.-]+$/.test(project.repository)) throw new Error(`invalid repository "${project.repository}"`)
+      log.line(`Cloning ${project.repository} (${project.branch})`)
+      await run('git', ['clone', '--depth', '1', '--branch', project.branch, `https://github.com/${project.repository}.git`, '.'], {
+        cwd: workDir,
+        log,
+      })
+    }
+
+    // 2. Installer et construire, dans le dossier racine du projet
+    const appDir = resolve(workDir, project.rootDirectory || '.')
+    if (appDir !== workDir && !appDir.startsWith(workDir + sep)) throw new Error('root directory is outside the project')
+
+    if (project.installCommand) {
+      log.line(`$ ${project.installCommand}`)
+      await run('sh', ['-c', project.installCommand], { cwd: appDir, log })
+    }
+    if (project.buildCommand) {
+      log.line(`$ ${project.buildCommand}`)
+      await run('sh', ['-c', project.buildCommand], { cwd: appDir, log })
+    }
+    await updateSteps(deployment.id, (steps) => setStep(setStep(steps, 'build', 'done', formatDuration(Date.now() - started)), 'test', 'done', '—'))
+
+    // 3. Publier
+    await updateSteps(deployment.id, (steps) => setStep(steps, 'deploy', 'running'))
+    const outDir = resolve(appDir, project.outputDirectory || '.')
+    if (outDir !== workDir && !outDir.startsWith(workDir + sep)) throw new Error('output directory is outside the project')
+    if (!(await stat(outDir).catch(() => null))?.isDirectory()) {
+      throw new Error(`output directory "${project.outputDirectory}" not found`)
+    }
+
+    const url = await publish(deployment.id, outDir, log)
+    log.line(`Live at ${url}`, 'success')
+
+    // 4. Terminé
+    const duration = formatDuration(Date.now() - started)
+    await updateSteps(deployment.id, (steps) => setStep(setStep(steps, 'deploy', 'done', duration), 'live', 'done', duration))
+    await prisma.deployment.update({
+      where: { id: deployment.id },
+      data: { status: 'deployed', url, duration, deployedAt: deployedLabel() },
+    })
+    await prisma.project.update({ where: { id: project.id }, data: { status: 'live', url } })
+  } catch (error) {
+    log.line(`Build failed: ${error.message}`, 'default')
+    await updateSteps(deployment.id, (steps) =>
+      steps.map((step) => (step.status === 'running' ? { ...step, status: 'failed' } : step)),
+    )
+    await prisma.deployment.update({
+      where: { id: deployment.id },
+      data: { status: 'failed', duration: formatDuration(Date.now() - started), deployedAt: deployedLabel() },
+    })
+    if (deployment.projectId) {
+      await prisma.project.update({ where: { id: deployment.projectId }, data: { status: 'attention' } })
+    }
+  } finally {
+    await log.close()
+  }
+}
+
+async function main() {
+  await mkdir(BUILDS_DIR, { recursive: true })
+  console.log(`Build worker started. Storage: ${STORAGE_DIR} · Builds: ${BUILDS_DIR}`)
+
+  for (;;) {
+    const next = await prisma.deployment.findFirst({
+      where: { status: 'building', ...(ONLY_DEPLOYMENT ? { id: ONLY_DEPLOYMENT } : {}) },
+      orderBy: { createdAt: 'asc' },
+    })
+
+    if (!next) {
+      await sleep(POLL_MS)
+      continue
+    }
+
+    console.log(`[${clock()}] Building ${next.name} (${next.id})`)
+    await build(next)
+    console.log(`[${clock()}] Finished ${next.name}`)
+  }
+}
+
+async function shutdown() {
+  for (const stop of running.values()) await stop()
+  await prisma.$disconnect()
+  process.exit(0)
+}
+
+process.on('SIGINT', shutdown)
+process.on('SIGTERM', shutdown)
+
+main().catch(async (error) => {
+  console.error(error)
+  await shutdown()
+})
