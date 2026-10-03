@@ -12,6 +12,11 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
+  // Côté serveur uniquement. Surchargé par NUXT_PROJECTS_STORAGE_DIR (voir .env)
+  runtimeConfig: {
+    projectsStorageDir: './storage/projects',
+  },
+
   app: {
     head: {
       title: 'Deplay',
