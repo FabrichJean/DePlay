@@ -61,11 +61,7 @@ const visibleProjects = computed(() => {
         <p class="subtitle">Manage and monitor your applications across all workspaces.</p>
       </div>
 
-      <button class="btn btn-primary new-btn" type="button">
-        <AppIcon name="plus" :size="16" />
-        New Project
-        <AppIcon name="chevronDown" :size="16" class="new-chevron" />
-      </button>
+      <NewProjectMenu />
     </header>
 
     <div class="toolbar">

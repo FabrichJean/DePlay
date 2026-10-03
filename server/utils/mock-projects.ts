@@ -1,6 +1,6 @@
 import type { ProjectsResponse } from '../../types/project'
 
-// Données de démonstration. À remplacer par un appel à votre API DeployFlow.
+// Données de démonstration. À remplacer par un appel à votre API Deplay.
 export const projectsResponse: ProjectsResponse = {
   projects: [
     {
