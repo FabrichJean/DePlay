@@ -132,6 +132,9 @@ async function submit() {
         body: { ...form },
       })
     }
+
+    // Une fois créé, on ouvre directement la page de détail : le build y apparaît en direct
+    await navigateTo(`/projects/${created.value.id}`)
   } catch (error) {
     // Affiche le message renvoyé par l'API (ex. « Upload exceeds 200 MB »), sinon un message générique
     const body = (error as { data?: { statusMessage?: string; data?: { errors?: Record<string, string> } } }).data
