@@ -154,10 +154,14 @@ const demoDeployment = {
   ]),
 }
 
+// Le déploiement de démo appartient au projet « fabrich-profile »
+const linkedProject = await prisma.project.findUnique({ where: { name: 'fabrich-profile' } })
+const deploymentWithProject = { ...demoDeployment, projectId: linkedProject?.id ?? null }
+
 await prisma.deployment.upsert({
-  where: { id: demoDeployment.id },
-  update: demoDeployment,
-  create: demoDeployment,
+  where: { id: deploymentWithProject.id },
+  update: deploymentWithProject,
+  create: deploymentWithProject,
 })
 
 console.log(`Seeded ${demoProjects.length} demo projects and 1 demo deployment.`)

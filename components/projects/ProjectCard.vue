@@ -22,9 +22,7 @@ const color = computed(() => STATUS_META[props.project.status].color)
 
       <div class="head-actions">
         <ProjectStatusBadge :status="project.status" />
-        <button class="icon-btn small" type="button" aria-label="More actions">
-          <AppIcon name="more" :size="16" />
-        </button>
+        <ProjectMenu :project="project" />
       </div>
     </header>
 

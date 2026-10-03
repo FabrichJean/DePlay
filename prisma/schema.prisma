@@ -38,6 +38,8 @@ model Project {
 // car SQLite ne gère pas le type Json.
 model Deployment {
   id           String   @id @default(cuid())
+  /// Projet auquel appartient ce déploiement (sans clé étrangère pour rester simple sur SQLite)
+  projectId    String?
   name         String
   description  String   @default("")
   type         String   @default("Web Application")
