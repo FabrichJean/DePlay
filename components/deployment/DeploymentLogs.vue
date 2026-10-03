@@ -23,6 +23,16 @@ const tabs: Tab[] = [
 
 const activeTab = ref<Tab['key']>('logs')
 
+const terminal = ref<HTMLElement | null>(null)
+
+// Suit les nouvelles lignes : le terminal descend tout seul pendant le build
+watch(
+  () => props.lines.length,
+  async () => {
+    await nextTick()
+    terminal.value?.scrollTo({ top: terminal.value.scrollHeight })
+  },
+)
 const plainText = computed(() =>
   props.lines.map((line) => `[${line.time}] ${line.message}`).join('\n'),
 )
