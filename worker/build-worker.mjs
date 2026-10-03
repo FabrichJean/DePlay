@@ -221,7 +221,7 @@ async function publish(deploymentId, outDir, log, preferredPort) {
     stop = () => new Promise((done) => server.close(done))
   }
 
-  running.set(deploymentId, stop)
+  running.set(deploymentId, { stop, dir: outDir })
   await waitForPort(port)
   return `http://localhost:${port}`
 }
@@ -243,6 +243,33 @@ async function flattenSingleFolder(dir) {
   }
 }
 
+// Redéploiement : arrête l'ancien site du projet et renvoie son port, pour que le nouveau le reprenne
+async function releasePreviousPort(projectId, currentId, log) {
+  if (!projectId) return undefined
+
+  const previous = await prisma.deployment.findFirst({
+    where: { projectId, id: { not: currentId }, url: { not: '' } },
+    orderBy: { createdAt: 'desc' },
+  })
+  if (!previous) return undefined
+
+  let port
+  try {
+    port = Number(new URL(previous.url).port)
+  } catch {
+    return undefined
+  }
+
+  const server = running.get(previous.id)
+  if (server) {
+    await server.stop()
+    running.delete(previous.id)
+    log.line(`Stopped previous site to keep port ${port}`)
+  }
+
+  // Laisse au système le temps de libérer le port
+  for (let attempt = 0; attempt < 20 && !(await portIsFree(port)); attempt++) await sleep(250)
+  return port
 // Construit un déploiement et le publie, ou le marque comme échoué
 async function build(deployment) {
   const started = Date.now()
