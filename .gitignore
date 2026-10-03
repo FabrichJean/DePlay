@@ -6,3 +6,5 @@ dist
 prisma/dev.db
 prisma/dev.db-journal
 storage/
+
+# clerk configuration (can include secrets)
