@@ -12,7 +12,7 @@ defineProps<{
 
     <div class="identity">
       <p class="name">{{ project.name }}</p>
-      <p class="url">{{ project.url }}</p>
+      <p class="url">{{ project.url || 'Not deployed yet' }}</p>
     </div>
 
     <ProjectStatusBadge :status="project.status" />
