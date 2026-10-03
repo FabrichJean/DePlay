@@ -1,4 +1,6 @@
-export default defineEventHandler(async () => {
+export default defineEventHandler(async (event) => {
+  requireUser(event)
+
   const rows = await prisma.project.findMany({ orderBy: { updatedAt: 'desc' } })
 
   return {

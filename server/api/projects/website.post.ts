@@ -37,6 +37,8 @@ async function parseRequest(event: Parameters<typeof readBody>[0]): Promise<Pars
 }
 
 export default defineEventHandler(async (event) => {
+  requireUser(event)
+
   const { body, fileCount, totalBytes } = await parseRequest(event)
   const isUpload = body.source === 'upload'
 
