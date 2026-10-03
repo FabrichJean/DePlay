@@ -10,7 +10,8 @@
     "postinstall": "nuxt prepare && prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "node prisma/seed.mjs",
-    "worker": "node --env-file=.env worker/build-worker.mjs"
+    "worker": "node --env-file=.env worker/build-worker.mjs",
+    "db:claim": "node prisma/claim.mjs"
   },
   "dependencies": {
     "@clerk/nuxt": "^3.1.9",
