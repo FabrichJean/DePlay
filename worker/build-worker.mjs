@@ -127,6 +127,15 @@ function run(command, args, { cwd, log }) {
   })
 }
 
+// Vrai si le port est libre : on tente de le réserver le temps de la vérification
+function portIsFree(port) {
+  return new Promise((done) => {
+    const probe = createNetServer()
+    probe.once('error', () => done(false))
+    probe.listen(port, '127.0.0.1', () => probe.close(() => done(true)))
+  })
+}
+
 function freePort() {
   return new Promise((done, fail) => {
     const probe = createNetServer()
@@ -187,8 +196,9 @@ async function serveFile(root, req, res) {
 }
 
 // Publie le dossier de sortie : serveur Nitro (Nuxt) s'il existe, sinon fichiers statiques
-async function publish(deploymentId, outDir, log) {
-  const port = await freePort()
+async function publish(deploymentId, outDir, log, preferredPort) {
+  // Garde le même port si possible, pour que l'URL d'un site survive à un redémarrage
+  const port = preferredPort && (await portIsFree(preferredPort)) ? preferredPort : await freePort()
   const nitroEntry = join(outDir, 'server', 'index.mjs')
   const isServer = await stat(nitroEntry).then(
     () => true,
@@ -292,7 +302,7 @@ async function build(deployment) {
     await updateSteps(deployment.id, (steps) => setStep(setStep(steps, 'deploy', 'done', duration), 'live', 'done', duration))
     await prisma.deployment.update({
       where: { id: deployment.id },
-      data: { status: 'deployed', url, duration, deployedAt: deployedLabel() },
+      data: { status: 'deployed', url, buildDir: outDir, duration, deployedAt: deployedLabel() },
     })
     await prisma.project.update({ where: { id: project.id }, data: { status: 'live', url } })
   } catch (error) {
@@ -312,9 +322,47 @@ async function build(deployment) {
   }
 }
 
+// Les déploiements créés avant buildDir n'ont que leur journal : on retrouve le dossier dans les logs
+function buildDirFromLogs(logsJson) {
+  const prefix = 'Serving static files from '
+  const entry = JSON.parse(logsJson || '[]').find((item) => item.message.startsWith(prefix))
+  return entry?.message.slice(prefix.length).replace(/ on port \d+$/, '') || ''
+}
+
+// Au démarrage : republie les sites déjà déployés depuis leur dossier de build, sans reconstruire
+async function restoreDeployments() {
+  const rows = await prisma.deployment.findMany({ where: { status: 'deployed' } })
+
+  for (const row of rows) {
+    const dir = row.buildDir || buildDirFromLogs(row.logs)
+    const log = new BuildLog(row.id)
+
+    try {
+      const isDirectory = dir ? (await stat(dir).catch(() => null))?.isDirectory() : false
+      if (!isDirectory) throw new Error('build output is gone')
+
+      const previousPort = row.url ? Number(new URL(row.url).port) : undefined
+      const url = await publish(row.id, dir, log, previousPort)
+      log.line(`Restored after worker restart at ${url}`, 'success')
+
+      await prisma.deployment.update({ where: { id: row.id }, data: { url, buildDir: dir } })
+      if (row.projectId) await prisma.project.update({ where: { id: row.projectId }, data: { url, status: 'live' } })
+      console.log(`Restored ${row.name} at ${url}`)
+    } catch (error) {
+      log.line(`Could not restore the site: ${error.message}. Redeploy to publish it again.`, 'default')
+      await prisma.deployment.update({ where: { id: row.id }, data: { status: 'failed' } })
+      if (row.projectId) await prisma.project.update({ where: { id: row.projectId }, data: { status: 'attention' } })
+      console.warn(`Could not restore ${row.name}: ${error.message}`)
+    } finally {
+      await log.close()
+    }
+  }
+}
+
 async function main() {
   await mkdir(BUILDS_DIR, { recursive: true })
   console.log(`Build worker started. Storage: ${STORAGE_DIR} · Builds: ${BUILDS_DIR}`)
+  await restoreDeployments()
 
   for (;;) {
     const next = await prisma.deployment.findFirst({

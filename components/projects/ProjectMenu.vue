@@ -28,6 +28,24 @@ function onKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') close()
 }
 
+const redeploying = ref(false)
+const redeployError = ref('')
+
+async function redeploy() {
+  redeployError.value = ''
+  redeploying.value = true
+  try {
+    await $fetch(`/api/projects/${props.project.id}/redeploy`, { method: 'POST' })
+    close()
+    await refreshNuxtData('projects')
+  } catch (error) {
+    const body = (error as { data?: { statusMessage?: string } }).data
+    redeployError.value = body?.statusMessage ?? 'Could not start the deployment.'
+  } finally {
+    redeploying.value = false
+  }
+}
+
 async function remove() {
   deleting.value = true
   deleteError.value = ''
@@ -90,6 +108,12 @@ onBeforeUnmount(() => {
           <AppIcon name="settings" :size="15" />
           Manage
         </NuxtLink>
+
+        <button type="button" class="item" role="menuitem" :disabled="redeploying" @click="redeploy">
+          <AppIcon name="refresh" :size="15" />
+          {{ redeploying ? 'Starting…' : 'Redeploy' }}
+        </button>
+        <p v-if="redeployError" class="confirm-error menu-error">{{ redeployError }}</p>
 
         <div class="divider" />
 
