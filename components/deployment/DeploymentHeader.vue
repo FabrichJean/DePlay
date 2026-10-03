@@ -35,7 +35,7 @@ defineProps<{
     <p class="description">{{ deployment.description }}</p>
 
     <div class="chips">
-      <a class="chip" :href="`https://${deployment.url}`" target="_blank" rel="noopener">
+      <a class="chip" :href="absoluteUrl(deployment.url)" target="_blank" rel="noopener">
         <AppIcon name="link" :size="14" />
         {{ deployment.url }}
       </a>
@@ -60,7 +60,7 @@ defineProps<{
       <div class="actions">
         <a
           class="btn"
-          :href="`https://${deployment.url}`"
+          :href="absoluteUrl(deployment.url)"
           target="_blank"
           rel="noopener"
         >
