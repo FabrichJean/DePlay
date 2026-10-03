@@ -120,14 +120,6 @@ async function submit() {
       Back to projects
     </NuxtLink>
 
-    <header class="head-main">
-      <span class="head-icon"><AppIcon name="globe" :size="22" /></span>
-      <div>
-        <h1>Create a website</h1>
-        <p class="subtitle">Connect a Git repository and Deplay will build and deploy it.</p>
-      </div>
-    </header>
-
     <section v-if="created" class="card success">
       <span class="success-icon"><AppIcon name="check" :size="22" /></span>
       <h2>Project “{{ created.name }}” created</h2>
@@ -180,10 +172,12 @@ async function submit() {
 
 <style scoped>
 .page {
-  max-width: 880px;
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 18px;
 }
 
 .back-link {
@@ -201,34 +195,37 @@ async function submit() {
 
 .head-main {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 16px;
+  text-align: center;
+  gap: 10px;
 }
 
 .head-icon {
   display: grid;
   place-items: center;
-  width: 48px;
-  height: 48px;
+  width: 42px;
+  height: 42px;
   border-radius: var(--radius);
   background: var(--primary-soft);
   color: var(--primary);
 }
 
 h1 {
-  font-size: 28px;
+  font-size: 22px;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
 
 .subtitle,
 .muted {
-  margin-top: 4px;
+  margin-top: 2px;
   color: var(--muted);
+  font-size: 13px;
 }
 
 .card {
-  padding: 26px;
+  padding: 20px 22px;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -245,7 +242,13 @@ h1 {
 .actions {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 8px;
+}
+
+.actions .btn {
+  height: 36px;
+  padding: 0 14px;
+  font-size: 13px;
 }
 
 .btn:disabled {

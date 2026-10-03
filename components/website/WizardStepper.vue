@@ -68,8 +68,8 @@ const emit = defineEmits<{
 
 .step {
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr);
-  gap: 14px;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 12px;
 }
 
 .rail {
@@ -81,11 +81,11 @@ const emit = defineEmits<{
 .circle {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   flex-shrink: 0;
   border-radius: 50%;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   border: 1px solid var(--border);
   background: var(--bg);
@@ -117,7 +117,7 @@ const emit = defineEmits<{
 
 .content {
   min-width: 0;
-  padding-bottom: 26px;
+  padding-bottom: 18px;
 }
 
 .step:last-child .content {
@@ -128,13 +128,13 @@ const emit = defineEmits<{
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px 14px;
-  min-height: 28px;
+  gap: 8px 12px;
+  min-height: 24px;
 }
 
 .title {
   padding: 0;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text);
   text-align: left;
@@ -169,6 +169,6 @@ const emit = defineEmits<{
 }
 
 .body {
-  margin-top: 18px;
+  margin-top: 12px;
 }
 </style>

@@ -1,7 +1,11 @@
 export type FrameworkPreset = 'nuxt' | 'next' | 'vite' | 'static'
 
+/** Origine du code : dépôt Git connecté ou fichiers déposés directement */
+export type ProjectSource = 'git' | 'upload'
+
 export interface WebsiteProjectInput {
   name: string
+  source: ProjectSource
   repository: string
   branch: string
   preset: FrameworkPreset
@@ -21,4 +25,5 @@ export interface RepositoryOption {
 export interface CreatedProject {
   id: string
   name: string
+  fileCount?: number
 }
