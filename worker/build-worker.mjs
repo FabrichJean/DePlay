@@ -270,6 +270,8 @@ async function releasePreviousPort(projectId, currentId, log) {
   // Laisse au système le temps de libérer le port
   for (let attempt = 0; attempt < 20 && !(await portIsFree(port)); attempt++) await sleep(250)
   return port
+}
+
 // Construit un déploiement et le publie, ou le marque comme échoué
 async function build(deployment) {
   const started = Date.now()
@@ -321,7 +323,8 @@ async function build(deployment) {
       throw new Error(`output directory "${project.outputDirectory}" not found`)
     }
 
-    const url = await publish(deployment.id, outDir, log)
+    const previousPort = await releasePreviousPort(deployment.projectId, deployment.id, log)
+    const url = await publish(deployment.id, outDir, log, previousPort)
     log.line(`Live at ${url}`, 'success')
 
     // 4. Terminé
@@ -358,9 +361,16 @@ function buildDirFromLogs(logsJson) {
 
 // Au démarrage : republie les sites déjà déployés depuis leur dossier de build, sans reconstruire
 async function restoreDeployments() {
-  const rows = await prisma.deployment.findMany({ where: { status: 'deployed' } })
+  const rows = await prisma.deployment.findMany({ where: { status: 'deployed' }, orderBy: { createdAt: 'desc' } })
+  const restoredProjects = new Set()
 
   for (const row of rows) {
+    // Un redéploiement remplace le précédent : on ne republie que le plus récent de chaque projet
+    if (row.projectId) {
+      if (restoredProjects.has(row.projectId)) continue
+      restoredProjects.add(row.projectId)
+    }
+
     const dir = row.buildDir || buildDirFromLogs(row.logs)
     const log = new BuildLog(row.id)
 
@@ -386,12 +396,27 @@ async function restoreDeployments() {
   }
 }
 
+// Arrête les sites dont le déploiement a été supprimé (ex. projet supprimé depuis l'API)
+async function reconcileRunning() {
+  for (const [deploymentId, { stop, dir }] of [...running.entries()]) {
+    const exists = await prisma.deployment.findUnique({ where: { id: deploymentId }, select: { id: true } })
+    if (exists) continue
+
+    await stop()
+    running.delete(deploymentId)
+    await rm(dir, { recursive: true, force: true })
+    console.log(`[${clock()}] Stopped site for deleted deployment ${deploymentId}`)
+  }
+}
+
 async function main() {
   await mkdir(BUILDS_DIR, { recursive: true })
   console.log(`Build worker started. Storage: ${STORAGE_DIR} · Builds: ${BUILDS_DIR}`)
   await restoreDeployments()
 
   for (;;) {
+    await reconcileRunning()
+
     const next = await prisma.deployment.findFirst({
       where: { status: 'building', ...(ONLY_DEPLOYMENT ? { id: ONLY_DEPLOYMENT } : {}) },
       orderBy: { createdAt: 'asc' },
@@ -409,7 +434,7 @@ async function main() {
 }
 
 async function shutdown() {
-  for (const stop of running.values()) await stop()
+  for (const { stop } of running.values()) await stop()
   await prisma.$disconnect()
   process.exit(0)
 }
