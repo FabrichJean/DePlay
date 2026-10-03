@@ -2,12 +2,13 @@
 // Lit les déploiements en attente dans la base, prépare le code, lance install/build,
 // puis publie le résultat sur localhost. Lancer avec : npm run worker
 //
-// Attention : les commandes du projet sont exécutées directement sur cette machine.
-// Ne l'utilisez pas avec du code non fiable sans isolation (conteneur, VM).
+// Isolation : avec BUILD_ISOLATION=docker (défaut), clone/install/build tournent dans un conteneur jetable.
+// Avec BUILD_ISOLATION=none, les commandes s'exécutent directement sur cette machine : code de confiance uniquement.
 import { PrismaClient } from '@prisma/client'
 import { spawn } from 'node:child_process'
+import { randomBytes } from 'node:crypto'
 import { createReadStream } from 'node:fs'
-import { cp, mkdir, mkdtemp, readdir, realpath, rename, rm, stat } from 'node:fs/promises'
+import { chown, cp, mkdir, mkdtemp, readdir, realpath, rename, rm, stat } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { createServer as createNetServer, connect } from 'node:net'
 import { extname, join, resolve, sep } from 'node:path'
@@ -23,6 +24,20 @@ const BUILDS_DIR = resolve(process.env.DEPLOY_WORK_DIR ?? './storage/builds')
 const ONLY_DEPLOYMENT = process.env.WORKER_ONLY_DEPLOYMENT_ID
 const COMMAND_TIMEOUT_MS = 10 * 60 * 1000
 const POLL_MS = 3000
+
+const ISOLATION = process.env.BUILD_ISOLATION ?? 'docker'
+if (!['docker', 'none'].includes(ISOLATION)) {
+  console.error('BUILD_ISOLATION must be "docker" or "none"')
+  process.exit(1)
+}
+const BUILD_IMAGE = process.env.BUILD_IMAGE ?? 'node:22-slim'
+const CLONE_IMAGE = process.env.CLONE_IMAGE ?? 'alpine/git'
+const BUILD_MEMORY = process.env.BUILD_MEMORY ?? '2g'
+const BUILD_CPUS = process.env.BUILD_CPUS ?? '2'
+const BUILD_PIDS = process.env.BUILD_PIDS ?? '512'
+// Utilisateur du conteneur : jamais root, même si le worker l'est
+const SANDBOX_UID = process.getuid && process.getuid() !== 0 ? process.getuid() : 10001
+const SANDBOX_GID = process.getgid && process.getgid() !== 0 ? process.getgid() : 10001
 
 const prisma = new PrismaClient()
 // deploymentId -> fonction d'arrêt du serveur publié
@@ -124,8 +139,21 @@ async function removeSymlinks(dir, log) {
   if (removed) log.line(`Removed ${removed} symbolic link${removed > 1 ? 's' : ''} for security`, 'muted')
 }
 
-// Lance une commande et renvoie une erreur si elle échoue ou dépasse le délai
-function run(command, args, { cwd, log }) {
+// Donne le dossier au utilisateur du conteneur (utile quand le worker tourne en root)
+async function chownTree(dir) {
+  if (process.getuid?.() !== 0) return
+  await chown(dir, SANDBOX_UID, SANDBOX_GID)
+  for (const entry of await readdir(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name)
+    if (entry.isDirectory()) await chownTree(path)
+    else await chown(path, SANDBOX_UID, SANDBOX_GID).catch(() => {})
+  }
+}
+
+// Commande docker : seul workDir est monté, sans secret, avec des limites de ressources
+function dockerArgs({ image, name, workDir, cwd, command, args }) {
+  const inside = cwd === workDir ? '/work' : `/work/${cwd.slice(workDir.length + 1)}`
+  return [
   return new Promise((done, fail) => {
     // GIT_TERMINAL_PROMPT=0 : git échoue au lieu d'attendre un identifiant sur un dépôt inconnu
     const child = spawn(command, args, { cwd, env: buildEnv() })
