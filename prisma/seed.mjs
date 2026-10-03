@@ -164,5 +164,50 @@ await prisma.deployment.upsert({
   create: deploymentWithProject,
 })
 
-console.log(`Seeded ${demoProjects.length} demo projects and 1 demo deployment.`)
+// Rattrapage : chaque projet sans déploiement reçoit son déploiement initial en attente
+const projectsWithoutDeployment = await prisma.project.findMany({
+  select: { id: true, name: true, branch: true, preset: true, createdAt: true },
+})
+const orphanIds = []
+for (const project of projectsWithoutDeployment) {
+  const existing = await prisma.deployment.count({ where: { projectId: project.id } })
+  if (existing === 0) orphanIds.push(project)
+}
+
+const presetLabels = { nuxt: 'Nuxt', next: 'Next.js', vite: 'Vite', static: 'Static HTML' }
+for (const project of orphanIds) {
+  await prisma.deployment.create({
+    data: {
+      projectId: project.id,
+      name: project.name,
+      branch: project.branch,
+      status: 'building',
+      deployedAt: 'In progress',
+      duration: '—',
+      steps: JSON.stringify([
+        { key: 'build', label: 'Build', duration: '—', status: 'running' },
+        { key: 'test', label: 'Test', duration: '—', status: 'pending' },
+        { key: 'deploy', label: 'Deploy', duration: '—', status: 'pending' },
+        { key: 'live', label: 'Live', duration: '—', status: 'pending' },
+      ]),
+      logs: JSON.stringify([
+        { time: new Date().toLocaleTimeString('en-GB', { hour12: false }), message: 'Deployment queued.', tone: 'default' },
+        { time: new Date().toLocaleTimeString('en-GB', { hour12: false }), message: 'Waiting for a build worker...', tone: 'muted' },
+      ]),
+      info: JSON.stringify({
+        name: project.name,
+        framework: presetLabels[project.preset] ?? project.preset,
+        runtime: 'Node.js',
+        port: 3000,
+        memory: '—',
+        cpu: '—',
+        created: project.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      }),
+      server: JSON.stringify({ status: 'offline', ip: '—', provider: '—', location: '—', flag: '' }),
+      metrics: '[]',
+    },
+  })
+}
+
+console.log(`Seeded ${demoProjects.length} demo projects and 1 demo deployment; backfilled ${orphanIds.length} initial deployment(s).`)
 await prisma.$disconnect()
