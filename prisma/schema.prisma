@@ -46,6 +46,8 @@ model Deployment {
   runtime      String   @default("Node.js")
   environment  String   @default("Production")
   url          String   @default("")
+  /// Dossier publié par le worker, pour republier le site après un redémarrage
+  buildDir     String   @default("")
   branch       String   @default("main")
   commit       String   @default("")
   status       String   @default("deployed")
