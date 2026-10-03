@@ -4,7 +4,7 @@ import type { Deployment } from '~/types/deployment'
 defineProps<{
   deployment: Pick<
     Deployment,
-    'name' | 'description' | 'type' | 'runtime' | 'environment' | 'url' | 'branch' | 'commit' | 'deployedAt'
+    'name' | 'description' | 'type' | 'runtime' | 'environment' | 'url' | 'branch' | 'commit' | 'deployedAt' | 'status'
   >
 }>()
 </script>
@@ -51,7 +51,9 @@ defineProps<{
 
     <div class="hero-side">
       <div class="status">
-        <StatusBadge label="Deployed" icon="check" />
+        <StatusBadge v-if="deployment.status === 'deployed'" label="Deployed" icon="check" />
+        <StatusBadge v-else-if="deployment.status === 'building'" label="Building" tone="neutral" pulse />
+        <StatusBadge v-else label="Failed" tone="neutral" />
         <time class="status-date">{{ deployment.deployedAt }}</time>
       </div>
 

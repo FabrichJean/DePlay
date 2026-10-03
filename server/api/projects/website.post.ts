@@ -80,15 +80,22 @@ export default defineEventHandler(async (event) => {
       },
     })
 
-    // Les fichiers sont écrits après la ligne en base ; en cas d'échec, on annule les deux
-    if (isUpload) {
-      try {
-        await writeProjectFiles(row.name, files)
-      } catch (error) {
-        await prisma.project.delete({ where: { id: row.id } })
-        await removeProjectFiles(row.name)
-        throw error
-      }
+    // Fichiers puis premier déploiement, après la ligne projet ; en cas d'échec, tout est annulé
+    try {
+      if (isUpload) await writeProjectFiles(row.name, files)
+
+      await prisma.deployment.create({
+        data: initialDeploymentData(row, {
+          source: isUpload ? 'upload' : 'git',
+          repository: row.repository,
+          fileCount,
+        }),
+      })
+    } catch (error) {
+      await prisma.deployment.deleteMany({ where: { projectId: row.id } })
+      await prisma.project.delete({ where: { id: row.id } })
+      await removeProjectFiles(row.name)
+      throw error
     }
 
     setResponseStatus(event, 201)
