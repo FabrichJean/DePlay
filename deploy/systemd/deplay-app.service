@@ -11,7 +11,7 @@ WorkingDirectory=/opt/deplay
 # Secrets : /opt/deplay/.env en mode 600, propriétaire deplay
 EnvironmentFile=/opt/deplay/.env
 Environment=NODE_ENV=production PORT=3100 HOST=127.0.0.1
-ExecStart=/usr/bin/node /opt/deplay/.output/server/index.mjs
+ExecStart=/opt/node22/bin/node /opt/deplay/.output/server/index.mjs
 Restart=on-failure
 RestartSec=5
 
