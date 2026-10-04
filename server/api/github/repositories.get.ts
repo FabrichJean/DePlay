@@ -1,5 +1,5 @@
-import { clerkClient } from '@clerk/nuxt/server'
 import type { FrameworkPreset, RepositoryOption } from '../../../types/website'
+import { githubToken } from '../../utils/github-token'
 import { relativeLabel } from '../../utils/project-mapper'
 
 interface GithubRepo {
@@ -13,8 +13,7 @@ interface GithubRepo {
 export default defineEventHandler(async (event): Promise<{ connected: boolean, repositories: RepositoryOption[] }> => {
   const { userId } = requireUser(event)
 
-  const tokens = await clerkClient(event).users.getUserOauthAccessToken(userId, 'github')
-  const token = tokens.data[0]?.token
+  const token = await githubToken(event, userId)
   if (!token) return { connected: false, repositories: [] }
 
   const repos = await githubGet<GithubRepo[]>(

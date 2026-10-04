@@ -30,8 +30,8 @@ if (!['docker', 'none'].includes(ISOLATION)) {
   console.error('BUILD_ISOLATION must be "docker" or "none"')
   process.exit(1)
 }
-const BUILD_IMAGE = process.env.BUILD_IMAGE ?? 'node:22-slim'
-const CLONE_IMAGE = process.env.CLONE_IMAGE ?? 'alpine/git'
+const BUILD_IMAGE = process.env.BUILD_IMAGE ?? 'docker.io/library/node:22-slim'
+const CLONE_IMAGE = process.env.CLONE_IMAGE ?? 'docker.io/alpine/git'
 const BUILD_MEMORY = process.env.BUILD_MEMORY ?? '2g'
 const BUILD_CPUS = process.env.BUILD_CPUS ?? '2'
 const BUILD_PIDS = process.env.BUILD_PIDS ?? '512'
@@ -132,6 +132,16 @@ function buildEnv() {
   }
 }
 
+// Authentification git pour un dépôt privé : l'en-tête est passé par l'environnement, jamais dans la ligne de commande
+function gitAuthEnv(token) {
+  const basic = Buffer.from(`x-access-token:${token}`).toString('base64')
+  return {
+    GIT_CONFIG_COUNT: '1',
+    GIT_CONFIG_KEY_0: 'http.https://github.com/.extraheader',
+    GIT_CONFIG_VALUE_0: `AUTHORIZATION: basic ${basic}`,
+  }
+}
+
 // Supprime les liens symboliques d'un dossier source : un dépôt ou un upload ne doit pas pointer ailleurs
 async function removeSymlinks(dir, log) {
   let removed = 0
@@ -162,7 +172,7 @@ async function chownTree(dir) {
 }
 
 // Commande docker : seul workDir est monté, sans secret, avec des limites de ressources
-function dockerArgs({ image, name, workDir, cwd, command, args }) {
+function dockerArgs({ image, name, workDir, cwd, command, args, passEnv = [] }) {
   const inside = cwd === workDir ? '/work' : `/work/${cwd.slice(workDir.length + 1)}`
   return [
     'run', '--rm', '--name', name,
@@ -174,20 +184,21 @@ function dockerArgs({ image, name, workDir, cwd, command, args }) {
     '--cpus', BUILD_CPUS, '--pids-limit', BUILD_PIDS,
     '-v', `${workDir}:/work`, '-w', inside,
     '-e', 'HOME=/tmp', '-e', 'CI=1', '-e', 'GIT_TERMINAL_PROMPT=0', '-e', 'LANG=C.UTF-8',
+    ...passEnv.flatMap((key) => ['-e', key]),
     '--entrypoint', command, image, ...args,
   ]
 }
 
 // Lance une commande et renvoie une erreur si elle échoue ou dépasse le délai.
 // `sandbox` ({ image, workDir }) l'exécute dans un conteneur quand l'isolation est active.
-function run(command, args, { cwd, log, sandbox }) {
+function run(command, args, { cwd, log, sandbox, env = {} }) {
   return new Promise((done, fail) => {
     const isolated = sandbox && ISOLATION === 'docker'
     const name = `deplay-build-${randomBytes(6).toString('hex')}`
     // GIT_TERMINAL_PROMPT=0 : git échoue au lieu d'attendre un identifiant sur un dépôt inconnu
     const child = isolated
-      ? spawn('docker', dockerArgs({ image: sandbox.image, name, workDir: sandbox.workDir, cwd, command, args }), { env: buildEnv() })
-      : spawn(command, args, { cwd, env: buildEnv() })
+      ? spawn('docker', dockerArgs({ image: sandbox.image, name, workDir: sandbox.workDir, cwd, command, args, passEnv: Object.keys(env) }), { env: { ...buildEnv(), ...env } })
+      : spawn(command, args, { cwd, env: { ...buildEnv(), ...env } })
 
     const timer = setTimeout(() => {
       if (isolated) spawn('docker', ['kill', name], { stdio: 'ignore' })
@@ -492,8 +503,12 @@ async function stopPreviousSites(projectId, currentId, log) {
 async function build(deployment) {
   const started = Date.now()
   const log = new BuildLog(deployment.id)
+  const cloneToken = deployment.cloneToken ?? null
 
   try {
+    // Le jeton ne doit pas rester en base : on l'efface dès qu'il est lu
+    if (cloneToken) await prisma.deployment.update({ where: { id: deployment.id }, data: { cloneToken: null } })
+
     const project = deployment.projectId
       ? await prisma.project.findUnique({ where: { id: deployment.projectId } })
       : null
@@ -516,6 +531,7 @@ async function build(deployment) {
         cwd: workDir,
         log,
         sandbox: { image: CLONE_IMAGE, workDir },
+        env: cloneToken ? gitAuthEnv(cloneToken) : {},
       })
     }
 

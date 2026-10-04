@@ -12,6 +12,8 @@ interface InitialDeploymentOptions {
   source: 'git' | 'upload'
   repository: string
   fileCount: number
+  /** Jeton GitHub de l'utilisateur, pour les dépôts privés */
+  cloneToken?: string | null
 }
 
 function timestamp(): string {
@@ -50,6 +52,7 @@ export function initialDeploymentData(project: ProjectRow, options: InitialDeplo
     branch: project.branch,
     commit: '',
     status: 'building',
+    cloneToken: options.cloneToken ?? null,
     deployedAt: 'In progress',
     duration: '—',
     steps: JSON.stringify(steps),

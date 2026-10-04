@@ -62,5 +62,7 @@ model Deployment {
   metrics      String   @default("[]")
   /// Configuration de build au moment du déploiement (source, commandes, framework)
   build        String   @default("{}")
+  /// Jeton GitHub pour cloner un dépôt privé : donné au worker puis effacé dès le début du build
+  cloneToken   String?
   createdAt    DateTime @default(now())
 }

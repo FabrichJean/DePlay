@@ -24,6 +24,7 @@ export default defineEventHandler(async (event) => {
       source: project.source === 'upload' ? 'upload' : 'git',
       repository: project.repository,
       fileCount: project.fileCount,
+      cloneToken: project.source === 'upload' ? null : await githubToken(event, userId),
     }),
   })
   await prisma.project.update({ where: { id: project.id }, data: { status: 'building' } })

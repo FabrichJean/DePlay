@@ -134,6 +134,7 @@ export default defineEventHandler(async (event) => {
           source: isUpload ? 'upload' : 'git',
           repository: row.repository,
           fileCount,
+          cloneToken: isUpload ? null : await githubToken(event, userId),
         }),
       })
     } catch (error) {
