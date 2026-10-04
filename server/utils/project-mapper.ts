@@ -16,6 +16,20 @@ export function relativeLabel(date: Date): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
+// 1 234 → « 1.2k » ; les petits nombres restent exacts
+function formatCount(value: number): string {
+  if (value < 1000) return String(value)
+  if (value < 1_000_000) return `${(value / 1000).toFixed(1)}k`
+  return `${(value / 1_000_000).toFixed(1)}M`
+}
+
+// Part des réponses 5xx sur l'ensemble des requêtes
+function errorRate(activity?: ProjectActivity): string {
+  if (!activity?.requests) return '0%'
+  const percent = (activity.errors / activity.requests) * 100
+  return `${percent < 10 ? percent.toFixed(1) : Math.round(percent)}%`
+}
+
 // Transforme une ligne de la base dans le format attendu par l'interface.
 // L'activité (déploiements, dernier passage) vient des déploiements réels, pas des colonnes figées.
 export function toProject(row: ProjectRow, activity?: ProjectActivity): Project {
@@ -36,10 +50,9 @@ export function toProject(row: ProjectRow, activity?: ProjectActivity): Project 
     updatedLabel: relativeLabel(lastActivity),
     stats: {
       deployments: activity?.deployments ?? 0,
-      // Pas encore de mesure de trafic : on n'affiche pas de faux chiffres
-      requests: '—',
-      errors: '—',
+      requests: formatCount(activity?.requests ?? 0),
+      errors: errorRate(activity),
     },
-    sparkline: activity?.sparkline ?? [],
+    sparkline: activity?.dailyRequests ?? [],
   }
 }

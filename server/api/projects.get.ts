@@ -6,7 +6,7 @@ export default defineEventHandler(async (event) => {
     orderBy: { updatedAt: 'desc' },
   })
 
-  const activity = await projectActivity(rows.map((row) => row.id))
+  const activity = await projectActivity(rows.map((row) => ({ id: row.id, name: row.name })))
 
   return {
     projects: rows.map((row) => toProject(row, activity.get(row.id))),
