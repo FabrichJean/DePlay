@@ -13,18 +13,18 @@ export const PRESETS: PresetOption[] = [
   {
     value: 'nuxt',
     label: 'Nuxt',
-    description: 'Server-rendered or static Nuxt app',
+    description: 'Static site generated with nuxt generate',
     installCommand: 'npm install',
-    buildCommand: 'npm run build',
+    buildCommand: 'npx nuxt generate',
     outputDirectory: '.output/public',
   },
   {
     value: 'next',
     label: 'Next.js',
-    description: 'React framework with App Router',
+    description: "Static export (set output: 'export' in next.config)",
     installCommand: 'npm install',
     buildCommand: 'npm run build',
-    outputDirectory: '.next',
+    outputDirectory: 'out',
   },
   {
     value: 'vite',

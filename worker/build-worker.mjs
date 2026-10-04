@@ -1,17 +1,17 @@
-// Worker de build local.
-// Lit les déploiements en attente dans la base, prépare le code, lance install/build,
-// puis publie le résultat sur localhost. Lancer avec : npm run worker
+// Worker de build.
+// Lit les déploiements en attente dans la base, prépare le code, lance install/build dans un conteneur jetable,
+// puis copie le dossier statique publié dans DEPLOY_SITES_DIR (servi par le bloc nginx *.fabrich.site).
+// Plusieurs builds tournent en parallèle, dans les limites de config/limits.json.
+// Lancer avec : npm run worker
 //
 // Isolation : avec BUILD_ISOLATION=docker (défaut), clone/install/build tournent dans un conteneur jetable.
 // Avec BUILD_ISOLATION=none, les commandes s'exécutent directement sur cette machine : code de confiance uniquement.
 import { PrismaClient } from '@prisma/client'
 import { spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
-import { createReadStream } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { chown, cp, mkdir, mkdtemp, readdir, realpath, rename, rm, stat } from 'node:fs/promises'
-import { createServer } from 'node:http'
-import { createServer as createNetServer, connect } from 'node:net'
-import { extname, join, resolve, sep } from 'node:path'
+import { join, resolve, sep } from 'node:path'
 
 const STORAGE_DIR = process.env.NUXT_PROJECTS_STORAGE_DIR
 if (!STORAGE_DIR) {
@@ -25,49 +25,32 @@ const ONLY_DEPLOYMENT = process.env.WORKER_ONLY_DEPLOYMENT_ID
 const COMMAND_TIMEOUT_MS = 10 * 60 * 1000
 const POLL_MS = 3000
 
+// Limites partagées avec l'application (config/limits.json)
+const LIMITS = JSON.parse(readFileSync(new URL('../config/limits.json', import.meta.url), 'utf8'))
+const MAX_CONCURRENT_BUILDS = Number(process.env.MAX_CONCURRENT_BUILDS ?? LIMITS.maxConcurrentBuilds)
+const MAX_BUILDS_PER_USER = Number(process.env.MAX_BUILDS_PER_USER ?? LIMITS.maxBuildsPerUser)
+const STORAGE_QUOTA_BYTES = LIMITS.storageQuotaBytes
+
+// Isolation des commandes du projet (clone, install, build)
 const ISOLATION = process.env.BUILD_ISOLATION ?? 'docker'
-if (!['docker', 'none'].includes(ISOLATION)) {
-  console.error('BUILD_ISOLATION must be "docker" or "none"')
-  process.exit(1)
-}
 const BUILD_IMAGE = process.env.BUILD_IMAGE ?? 'docker.io/library/node:22-slim'
 const CLONE_IMAGE = process.env.CLONE_IMAGE ?? 'docker.io/alpine/git'
-const BUILD_MEMORY = process.env.BUILD_MEMORY ?? '2g'
-const BUILD_CPUS = process.env.BUILD_CPUS ?? '2'
+// Ressources par build : 1 CPU et 1 Go, pour qu'on puisse en lancer plusieurs
+const BUILD_MEMORY = process.env.BUILD_MEMORY ?? '1g'
+const BUILD_CPUS = process.env.BUILD_CPUS ?? '1'
 const BUILD_PIDS = process.env.BUILD_PIDS ?? '512'
 
-// Mode d'URL : « port » (développement, http://localhost:<port>) ou « subdomain » (VPS, https://<nom>.<domaine>)
-const SITE_MODE = process.env.SITE_MODE ?? 'port'
-if (!['port', 'subdomain'].includes(SITE_MODE)) {
-  console.error('SITE_MODE must be "port" or "subdomain"')
-  process.exit(1)
-}
+// Sites statiques : dossier servi par nginx (un seul bloc *.fabrich.site, voir deploy/nginx/deplay-sites.conf)
 const SITE_DOMAIN = process.env.SITE_DOMAIN ?? 'fabrich.site'
 const SITES_DIR = resolve(process.env.DEPLOY_SITES_DIR ?? '/www/wwwroot/deplay-sites')
-const SITE_SCRIPT = process.env.NGINX_SITE_SCRIPT ?? '/opt/deplay/deploy/nginx-site.sh'
-const VHOST_DIR = process.env.NGINX_VHOST_DIR ?? '/www/server/panel/vhost/nginx'
-// Utilisateur du conteneur : jamais root, même si le worker l'est
+
 const SANDBOX_UID = process.getuid && process.getuid() !== 0 ? process.getuid() : 10001
 const SANDBOX_GID = process.getgid && process.getgid() !== 0 ? process.getgid() : 10001
 
 const prisma = new PrismaClient()
-// deploymentId -> fonction d'arrêt du serveur publié
-const running = new Map()
 
-const MIME = {
-  '.html': 'text/html; charset=utf-8',
-  '.css': 'text/css',
-  '.js': 'text/javascript',
-  '.mjs': 'text/javascript',
-  '.json': 'application/json',
-  '.svg': 'image/svg+xml',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.ico': 'image/x-icon',
-  '.txt': 'text/plain',
-  '.woff2': 'font/woff2',
-}
+// Sites publiés : arrêt (rien pour un site statique) et nettoyage du dossier servi
+const running = new Map()
 
 const clock = () => new Date().toLocaleTimeString('en-GB', { hour12: false })
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms))
@@ -227,185 +210,53 @@ function run(command, args, { cwd, log, sandbox, env = {} }) {
   })
 }
 
-// Vrai si le port est libre : on tente de le réserver le temps de la vérification
-function portIsFree(port) {
-  return new Promise((done) => {
-    const probe = createNetServer()
-    probe.once('error', () => done(false))
-    probe.listen(port, '127.0.0.1', () => probe.close(() => done(true)))
-  })
-}
-
-function freePort() {
-  return new Promise((done, fail) => {
-    const probe = createNetServer()
-    probe.on('error', fail)
-    probe.listen(0, '127.0.0.1', () => {
-      const { port } = probe.address()
-      probe.close(() => done(port))
-    })
-  })
-}
-
-// Attend que le port réponde, pour ne renvoyer l'URL qu'une fois le site accessible
-function waitForPort(port, timeoutMs = 15000) {
-  const started = Date.now()
-  return new Promise((done, fail) => {
-    const attempt = () => {
-      const socket = connect(port, '127.0.0.1')
-      socket.once('connect', () => {
-        socket.end()
-        done()
-      })
-      socket.once('error', () => {
-        socket.destroy()
-        if (Date.now() - started > timeoutMs) fail(new Error(`port ${port} did not open in time`))
-        else setTimeout(attempt, 250)
-      })
-    }
-    attempt()
-  })
-}
-
-// Sert un dossier statique ; les routes sans extension retombent sur index.html (SPA)
-async function serveFile(root, req, res) {
-  const pathname = decodeURIComponent((req.url ?? '/').split('?')[0])
-  let file = resolve(root, `.${pathname}`)
-
-  if (file !== root && !file.startsWith(root + sep)) {
-    res.writeHead(403).end()
-    return
-  }
-
-  // Un lien symbolique ne doit jamais faire sortir le site de son dossier publié
-  const rootReal = await realpath(root).catch(() => root)
-  const fileReal = await realpath(file).catch(() => null)
-  if (fileReal && fileReal !== rootReal && !fileReal.startsWith(rootReal + sep)) {
-    res.writeHead(404).end('Not found')
-    return
-  }
-
-  let info = await stat(file).catch(() => null)
-  if (info?.isDirectory()) {
-    file = join(file, 'index.html')
-    info = await stat(file).catch(() => null)
-  }
-  if (!info && !extname(pathname)) {
-    file = join(root, 'index.html')
-    info = await stat(file).catch(() => null)
-  }
-  if (!info) {
-    res.writeHead(404).end('Not found')
-    return
-  }
-
-  res.writeHead(200, { 'content-type': MIME[extname(file)] ?? 'application/octet-stream' })
-  createReadStream(file).pipe(res)
-}
-
-// Publie le dossier de sortie : serveur Nitro (Nuxt) s'il existe, sinon fichiers statiques
-// Appelle le script nginx en root via sudo (une seule commande autorisée, voir deploy/sudoers.example)
-function nginxSite(args) {
-  return new Promise((done, fail) => {
-    const child = spawn('sudo', ['-n', SITE_SCRIPT, ...args], { env: buildEnv() })
-    let stderr = ''
-    child.stderr.on('data', (chunk) => (stderr += chunk))
-    child.on('error', fail)
-    child.on('close', (code) => (code === 0 ? done() : fail(new Error(stderr.trim() || `nginx-site exited with ${code}`))))
-  })
-}
-
-// Port libre tiré dans une plage (pour les serveurs Nitro en mode subdomain : 8100 à 9999)
-async function freePortInRange(min, max) {
-  for (let attempt = 0; attempt < 200; attempt++) {
-    const port = min + Math.floor(Math.random() * (max - min + 1))
-    if (await portIsFree(port)) return port
-  }
-  throw new Error(`no free port between ${min} and ${max}`)
-}
-
-// Publie un déploiement. En mode subdomain, nginx sert le site sous https://<nom>.<domaine>.
-async function publish(deploymentId, outDir, log, preferredPort, siteName) {
-  if (SITE_MODE === 'subdomain') return publishSubdomain(deploymentId, outDir, log, siteName)
-  return publishLocal(deploymentId, outDir, log, preferredPort)
-}
-
-async function publishSubdomain(deploymentId, outDir, log, name) {
-  const url = `https://${name}.${SITE_DOMAIN}`
-  const nitroEntry = join(outDir, 'server', 'index.mjs')
-  const isServer = await stat(nitroEntry).then(
-    () => true,
-    () => false,
-  )
-
-  if (!isServer) {
-    // Site statique : copie lisible par nginx (utilisateur www), puis configuration nginx
-    const target = join(SITES_DIR, name)
-    await rm(target, { recursive: true, force: true })
-    await cp(outDir, target, { recursive: true })
-    await run('chmod', ['-R', 'u+rwX,go+rX', target], { cwd: SITES_DIR, log })
-    await nginxSite(['install-static', name, target])
-    log.line(`Published static site at ${url}`, 'success')
-
-    running.set(deploymentId, {
-      stop: async () => {},
-      dir: outDir,
-      cleanup: async () => {
-        await nginxSite(['remove', name])
-        await rm(target, { recursive: true, force: true })
-      },
-    })
-    return url
-  }
-
-  // Site serveur : Nitro écoute en local, nginx fait le relais vers le port interne
-  const port = await freePortInRange(8100, 9999)
-  log.line(`Starting server on port ${port}`)
-  const child = spawn(process.execPath, [nitroEntry], {
-    cwd: outDir,
-    env: { ...buildEnv(), PORT: String(port), HOST: '127.0.0.1' },
-    stdio: 'ignore',
-  })
-  await waitForPort(port)
-  await nginxSite(['install-node', name, String(port)])
-  log.line(`Published server at ${url}`, 'success')
+// Publie un site statique : copie du dossier de sortie dans SITES_DIR/<nom>, servi par nginx
+async function publishStatic(deploymentId, outDir, log, name) {
+  const target = join(SITES_DIR, name)
+  await rm(target, { recursive: true, force: true })
+  await cp(outDir, target, { recursive: true })
+  await run('chmod', ['-R', 'u+rwX,go+rX', target], { cwd: SITES_DIR, log })
+  log.line(`Published static site at https://${name}.${SITE_DOMAIN}`, 'success')
 
   running.set(deploymentId, {
-    stop: async () => child.kill(),
+    stop: async () => {},
     dir: outDir,
-    cleanup: async () => nginxSite(['remove', name]),
+    cleanup: async () => rm(target, { recursive: true, force: true }),
   })
-  return url
+  return `https://${name}.${SITE_DOMAIN}`
 }
 
-async function publishLocal(deploymentId, outDir, log, preferredPort) {
-  // Garde le même port si possible, pour que l'URL d'un site survive à un redémarrage
-  const port = preferredPort && (await portIsFree(preferredPort)) ? preferredPort : await freePort()
-  const nitroEntry = join(outDir, 'server', 'index.mjs')
-  const isServer = await stat(nitroEntry).then(
-    () => true,
-    () => false,
-  )
-
-  let stop
-  if (isServer) {
-    log.line(`Starting server on port ${port}`)
-    const child = spawn(process.execPath, [nitroEntry], {
-      cwd: outDir,
-      env: { ...buildEnv(), PORT: String(port), HOST: '127.0.0.1' },
-      stdio: 'ignore',
-    })
-    stop = async () => child.kill()
-  } else {
-    log.line(`Serving static files from ${outDir} on port ${port}`)
-    const server = createServer((req, res) => serveFile(outDir, req, res).catch(() => res.writeHead(500).end()))
-    await new Promise((done) => server.listen(port, '127.0.0.1', done))
-    stop = () => new Promise((done) => server.close(done))
+// Taille totale d'un dossier, en octets
+async function dirSize(dir) {
+  let total = 0
+  for (const entry of await readdir(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name)
+    if (entry.isDirectory()) total += await dirSize(path)
+    else if (entry.isFile()) total += (await stat(path)).size
   }
+  return total
+}
 
-  running.set(deploymentId, { stop, dir: outDir })
-  await waitForPort(port)
-  return `http://localhost:${port}`
+// Espace utilisé par le compte, hors ce projet : sources uploadées + sites publiés
+async function storageUsedByOthers(ownerId, projectId) {
+  if (!ownerId) return 0
+  const others = await prisma.project.findMany({
+    where: { ownerId, id: { not: projectId } },
+    select: { sourceBytes: true, outputBytes: true },
+  })
+  return others.reduce((sum, row) => sum + row.sourceBytes + row.outputBytes, 0)
+}
+
+// Supprime les dossiers de sites dont le projet n'existe plus
+async function cleanupOrphanSites() {
+  const entries = await readdir(SITES_DIR, { withFileTypes: true }).catch(() => [])
+  for (const entry of entries) {
+    if (!entry.isDirectory() || !/^[a-z0-9-]{3,40}$/.test(entry.name)) continue
+    const exists = await prisma.project.findUnique({ where: { name: entry.name }, select: { id: true } })
+    if (exists) continue
+    await rm(join(SITES_DIR, entry.name), { recursive: true, force: true })
+    console.log(`[${clock()}] Removed site of deleted project ${entry.name}`)
+  }
 }
 
 // Un dossier uploadé arrive avec son nom en racine (« mada/index.html ») : on remonte son contenu,
@@ -423,36 +274,6 @@ async function flattenSingleFolder(dir) {
     }
     await rm(staging, { recursive: true, force: true })
   }
-}
-
-// Redéploiement : arrête l'ancien site du projet et renvoie son port, pour que le nouveau le reprenne
-async function releasePreviousPort(projectId, currentId, log) {
-  // En mode subdomain, il n'y a pas de port à récupérer : l'URL est un nom de domaine
-  if (!projectId || SITE_MODE === 'subdomain') return undefined
-
-  const previous = await prisma.deployment.findFirst({
-    where: { projectId, id: { not: currentId }, url: { not: '' } },
-    orderBy: { createdAt: 'desc' },
-  })
-  if (!previous) return undefined
-
-  let port
-  try {
-    port = Number(new URL(previous.url).port)
-  } catch {
-    return undefined
-  }
-
-  const server = running.get(previous.id)
-  if (server) {
-    await server.stop()
-    running.delete(previous.id)
-    log.line(`Stopped previous site to keep port ${port}`)
-  }
-
-  // Laisse au système le temps de libérer le port
-  for (let attempt = 0; attempt < 20 && !(await portIsFree(port)); attempt++) await sleep(250)
-  return port
 }
 
 // Dossier de build complet (créé par mkdtemp) qui contient un dossier publié, ex. « builds/app-x1y2/dist »
@@ -478,24 +299,6 @@ async function removePreviousBuilds(projectId, currentId, currentRoot, log) {
     await rm(root, { recursive: true, force: true })
     await prisma.deployment.update({ where: { id: row.id }, data: { buildDir: '' } })
     log.line(`Removed previous build ${root}`)
-  }
-}
-
-// Mode subdomain : arrête les processus serveur des anciens déploiements du projet.
-// La configuration nginx est réutilisée (même nom de domaine), elle n'est donc pas retirée.
-async function stopPreviousSites(projectId, currentId, log) {
-  if (!projectId || SITE_MODE !== 'subdomain') return
-
-  const previous = await prisma.deployment.findMany({
-    where: { projectId, id: { not: currentId } },
-    select: { id: true },
-  })
-  for (const { id } of previous) {
-    const server = running.get(id)
-    if (!server) continue
-    await server.stop()
-    running.delete(id)
-    log.line('Stopped previous server process', 'muted')
   }
 }
 
@@ -566,11 +369,25 @@ async function build(deployment) {
       throw new Error(`output directory "${project.outputDirectory}" not found`)
     }
 
-    const previousPort = await releasePreviousPort(deployment.projectId, deployment.id, log)
-    const url = await publish(deployment.id, outDir, log, previousPort, project.name)
-    // Une fois le nouveau site en ligne, on arrête les anciens processus (sans toucher à nginx)
-    await stopPreviousSites(deployment.projectId, deployment.id, log)
+    // Seuls les sites statiques sont acceptés : un serveur Node n'est pas exécuté sur le serveur
+    if ((await stat(join(outDir, 'server', 'index.mjs')).catch(() => null))) {
+      throw new Error('server output is not supported: build a static site (e.g. nuxt generate, next export)')
+    }
+
+    // Quota du compte : ce site ne doit pas dépasser l'espace restant
+    const outputBytes = await dirSize(outDir)
+    const used = await storageUsedByOthers(project.ownerId, project.id)
+    if (used + project.sourceBytes + outputBytes > STORAGE_QUOTA_BYTES) {
+      const mb = (bytes) => `${(bytes / 1048576).toFixed(1)} MB`
+      throw new Error(
+        `storage limit reached: the site is ${mb(outputBytes)} and the account has ` +
+          `${mb(Math.max(0, STORAGE_QUOTA_BYTES - used - project.sourceBytes))} left`,
+      )
+    }
+
+    const url = await publishStatic(deployment.id, outDir, log, project.name)
     log.line(`Live at ${url}`, 'success')
+    await prisma.project.update({ where: { id: project.id }, data: { outputBytes } })
     await removePreviousBuilds(deployment.projectId, deployment.id, workDir, log)
 
     // 4. Terminé
@@ -624,8 +441,7 @@ async function restoreDeployments() {
       const isDirectory = dir ? (await stat(dir).catch(() => null))?.isDirectory() : false
       if (!isDirectory) throw new Error('build output is gone')
 
-      const previousPort = row.url ? Number(new URL(row.url).port) : undefined
-      const url = await publish(row.id, dir, log, previousPort, row.name)
+      const url = await publishStatic(row.id, dir, log, row.name)
       log.line(`Restored after worker restart at ${url}`, 'success')
 
       await prisma.deployment.update({ where: { id: row.id }, data: { url, buildDir: dir } })
@@ -656,47 +472,69 @@ async function reconcileRunning() {
   }
 }
 
-// Supprime les configurations nginx de projets supprimés (le worker est le seul à appeler sudo)
-async function cleanupOrphanSites() {
-  if (SITE_MODE !== 'subdomain') return
+// Builds en cours : identifiant du déploiement -> compte propriétaire (ou projet, si anonyme)
+const activeBuilds = new Map()
 
-  const files = await readdir(VHOST_DIR).catch(() => [])
-  for (const file of files) {
-    const match = /^deplay-([a-z0-9-]{3,40})\.conf$/.exec(file)
-    if (!match) continue
+// Prend les builds en attente tant qu'il reste de la place, dans les limites par serveur et par compte
+async function startBuilds() {
+  if (activeBuilds.size >= MAX_CONCURRENT_BUILDS) return
 
-    const name = match[1]
-    const exists = await prisma.project.findUnique({ where: { name }, select: { id: true } })
-    if (exists) continue
+  const candidates = await prisma.deployment.findMany({
+    where: { status: 'building', claimedAt: null, ...(ONLY_DEPLOYMENT ? { id: ONLY_DEPLOYMENT } : {}) },
+    orderBy: { createdAt: 'asc' },
+    take: 50,
+  })
+  if (!candidates.length) return
 
-    await nginxSite(['remove', name])
-    await rm(join(SITES_DIR, name), { recursive: true, force: true })
-    console.log(`[${clock()}] Removed nginx configuration of deleted project ${name}`)
+  const projects = await prisma.project.findMany({
+    where: { id: { in: candidates.map((row) => row.projectId).filter(Boolean) } },
+    select: { id: true, ownerId: true },
+  })
+  const ownerOf = new Map(projects.map((project) => [project.id, project.ownerId ?? `project:${project.id}`]))
+
+  for (const deployment of candidates) {
+    if (activeBuilds.size >= MAX_CONCURRENT_BUILDS) break
+
+    const owner = ownerOf.get(deployment.projectId) ?? `deployment:${deployment.id}`
+    const ownerBuilds = [...activeBuilds.values()].filter((value) => value === owner).length
+    if (ownerBuilds >= MAX_BUILDS_PER_USER) continue
+
+    // Verrou atomique : seul le worker qui fait passer claimedAt de vide à rempli obtient ce build
+    const claim = await prisma.deployment.updateMany({
+      where: { id: deployment.id, claimedAt: null },
+      data: { claimedAt: new Date() },
+    })
+    if (claim.count !== 1) continue
+
+    activeBuilds.set(deployment.id, owner)
+    console.log(`[${clock()}] Building ${deployment.name} (${deployment.id})`)
+    build(deployment)
+      .catch((error) => console.error(`[${clock()}] Build crashed for ${deployment.name}:`, error))
+      .finally(() => {
+        activeBuilds.delete(deployment.id)
+        console.log(`[${clock()}] Finished ${deployment.name}`)
+      })
   }
 }
 
 async function main() {
   await mkdir(BUILDS_DIR, { recursive: true })
-  console.log(`Build worker started. Storage: ${STORAGE_DIR} · Builds: ${BUILDS_DIR}`)
+  await mkdir(SITES_DIR, { recursive: true })
+  console.log(`Build worker started. Storage: ${STORAGE_DIR} · Builds: ${BUILDS_DIR} · Sites: ${SITES_DIR}`)
+  console.log(`Limits: ${MAX_CONCURRENT_BUILDS} builds at once, ${MAX_BUILDS_PER_USER} per account`)
+
+  // Un build interrompu par un arrêt du worker est remis en file : il repart du clone
+  await prisma.deployment.updateMany({
+    where: { status: 'building', claimedAt: { not: null } },
+    data: { claimedAt: null },
+  })
   await restoreDeployments()
 
   for (;;) {
     await reconcileRunning()
-    await cleanupOrphanSites().catch((error) => console.warn(`[${clock()}] nginx cleanup failed: ${error.message}`))
-
-    const next = await prisma.deployment.findFirst({
-      where: { status: 'building', ...(ONLY_DEPLOYMENT ? { id: ONLY_DEPLOYMENT } : {}) },
-      orderBy: { createdAt: 'asc' },
-    })
-
-    if (!next) {
-      await sleep(POLL_MS)
-      continue
-    }
-
-    console.log(`[${clock()}] Building ${next.name} (${next.id})`)
-    await build(next)
-    console.log(`[${clock()}] Finished ${next.name}`)
+    await cleanupOrphanSites().catch((error) => console.warn(`[${clock()}] site cleanup failed: ${error.message}`))
+    await startBuilds().catch((error) => console.error(`[${clock()}] queue error: ${error.message}`))
+    await sleep(POLL_MS)
   }
 }
 
