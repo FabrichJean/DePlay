@@ -25,6 +25,24 @@ const errors = ref<Partial<Record<keyof WebsiteProjectInput | 'files', string>>>
 const submitting = ref(false)
 const submitError = ref('')
 const uploadProgress = ref<UploadProgress | null>(null)
+
+const phaseLabel = computed(() => {
+  const labels = {
+    preparing: 'Preparing files…',
+    sending: 'Uploading files…',
+    processing: 'Processing on server…',
+  }
+  return uploadProgress.value ? labels[uploadProgress.value.phase] : ''
+})
+
+const progressDetail = computed(() => {
+  const progress = uploadProgress.value
+  if (!progress) return ''
+  // Pendant la préparation, on compte les fichiers ; ensuite, les octets envoyés
+  return progress.phase === 'preparing'
+    ? `${progress.loaded} / ${progress.total} files`
+    : `${formatBytes(progress.loaded)} / ${formatBytes(progress.total)}`
+})
 const created = ref<CreatedProject | null>(null)
 
 // Résumé affiché sous chaque étape terminée
@@ -121,11 +139,22 @@ async function submit() {
   try {
     if (form.source === 'upload') {
       // Multipart : la configuration en JSON + les fichiers, avec leur chemin relatif pour les dossiers
+      // Étape 1 : optimisation des images et archive zip, dans le navigateur
+      const total = uploadedFiles.value.length
+      uploadProgress.value = { phase: 'preparing', loaded: 0, total, percent: 0 }
+      const archive = await packProject(uploadedFiles.value, ({ done, total: count }) => {
+        uploadProgress.value = {
+          phase: 'preparing',
+          loaded: done,
+          total: count,
+          percent: Math.round((done / count) * 100),
+        }
+      })
+
+      // Étape 2 : envoi de la configuration et de l'archive
       const body = new FormData()
       body.append('config', JSON.stringify({ ...form }))
-      for (const file of uploadedFiles.value) {
-        body.append('files', file, file.webkitRelativePath || file.name)
-      }
+      body.append('archive', archive, 'project.zip')
       created.value = await postWithProgress<CreatedProject>('/api/projects/website', body, (progress) => {
         uploadProgress.value = progress
       })
@@ -185,13 +214,13 @@ async function submit() {
 
       <div v-if="uploadProgress" class="progress" role="status" aria-live="polite">
         <div class="progress-head">
-          <span>{{ uploadProgress.phase === 'sending' ? 'Uploading files…' : 'Processing on server…' }}</span>
+          <span>{{ phaseLabel }}</span>
           <span>{{ uploadProgress.percent }}%</span>
         </div>
         <div class="progress-bar" role="progressbar" :aria-valuenow="uploadProgress.percent" aria-valuemin="0" aria-valuemax="100">
           <span :style="{ width: `${uploadProgress.percent}%` }" />
         </div>
-        <p class="muted">{{ formatBytes(uploadProgress.loaded) }} / {{ formatBytes(uploadProgress.total) }}</p>
+        <p class="muted">{{ progressDetail }}</p>
       </div>
 
       <p v-if="submitError" class="banner">{{ submitError }}</p>
