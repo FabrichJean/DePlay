@@ -23,7 +23,7 @@ RestartSec=5
 
 # Doit être à false : avec true, sudo ne peut pas élever les droits pour nginx-site.sh
 NoNewPrivileges=false
-ProtectHome=read-only
+ProtectHome=false
 PrivateTmp=true
 ReadWritePaths=/opt/deplay/prisma /opt/deplay/storage /home/deplay
 
