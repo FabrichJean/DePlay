@@ -1,7 +1,7 @@
 // Capture d'écran d'un site publié, exécutée dans un conteneur Playwright jetable.
 // Usage : node capture-thumbnail.mjs <url> <fichier.jpg>
 // Petite image (640×400, JPEG compressé) : elle ne pèse que quelques dizaines de Ko
-import { chromium } from 'playwright'
+import { chromium } from 'playwright-core'
 
 const [url, output] = process.argv.slice(2)
 if (!url || !output) {

@@ -238,7 +238,8 @@ async function publishStatic(deploymentId, outDir, log, name) {
 // Capture d'écran du site publié. Un échec n'annule pas le déploiement : le site reste en ligne sans image.
 async function captureThumbnail(projectId, url, log) {
   await mkdir(THUMBNAILS_DIR, { recursive: true })
-  const script = new URL('./capture-thumbnail.mjs', import.meta.url).pathname
+  // Dossier de capture : le script et playwright-core (les navigateurs sont dans l'image)
+  const captureDir = new URL('./capture', import.meta.url).pathname
   const name = `deplay-thumb-${randomBytes(6).toString('hex')}`
   const args =
     ISOLATION === 'docker'
@@ -249,7 +250,7 @@ async function captureThumbnail(projectId, url, log) {
           '--memory', '1g', '--cpus', '1', '--pids-limit', '256', '--shm-size', '512m',
           '--tmpfs', '/tmp:rw,exec,nosuid,size=512m',
           '-e', 'HOME=/tmp',
-          '-v', `${THUMBNAILS_DIR}:/out`, '-v', `${script}:/work/capture-thumbnail.mjs:ro`,
+          '-v', `${THUMBNAILS_DIR}:/out`, '-v', `${captureDir}:/work:ro`,
           '--entrypoint', 'node', THUMBNAIL_IMAGE, '/work/capture-thumbnail.mjs', url, `/out/${projectId}.jpg`,
         ]
       : null
