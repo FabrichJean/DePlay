@@ -29,7 +29,8 @@ async function connectGithub() {
     window.location.href = authorizeUrl
   } catch (cause) {
     console.error('Connect GitHub failed:', cause)
-    connectError.value = (cause as Error).message || 'Could not connect GitHub.'
+    const clerkError = (cause as { errors?: { longMessage?: string, message?: string }[] }).errors?.[0]
+    connectError.value = clerkError?.longMessage || clerkError?.message || (cause as Error).message || 'Could not connect GitHub.'
     connecting.value = false
   }
 }

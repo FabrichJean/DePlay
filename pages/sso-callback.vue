@@ -13,7 +13,9 @@ onMounted(async () => {
     })
   } catch (cause) {
     console.error('GitHub connection failed:', cause)
-    error.value = 'Could not connect GitHub. Please try again.'
+    // Clerk donne la raison précise (ex. compte déjà lié) dans errors[0].longMessage
+    const clerkError = (cause as { errors?: { longMessage?: string, message?: string }[] }).errors?.[0]
+    error.value = clerkError?.longMessage || clerkError?.message || (cause as Error).message || 'Could not connect GitHub. Please try again.'
   }
 })
 </script>
