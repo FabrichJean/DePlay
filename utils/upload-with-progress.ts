@@ -12,10 +12,12 @@ export function postWithProgress<T>(
   url: string,
   body: FormData,
   onProgress: (progress: UploadProgress) => void,
+  headers: Record<string, string> = {},
 ): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const xhr = new XMLHttpRequest()
     xhr.open('POST', url)
+    for (const [name, value] of Object.entries(headers)) xhr.setRequestHeader(name, value)
 
     let total = 0
     xhr.upload.onprogress = (event) => {
