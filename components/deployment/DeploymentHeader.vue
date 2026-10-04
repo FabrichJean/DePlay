@@ -13,7 +13,7 @@ defineProps<{
   <header class="header">
     <NuxtLink to="/" class="back-link">
       <AppIcon name="arrowLeft" :size="16" />
-      Back to applications
+      Back to projects
     </NuxtLink>
 
     <div class="title-row">
@@ -73,7 +73,6 @@ defineProps<{
       </div>
     </div>
 
-    <RocketIllustration class="rocket" />
   </header>
 </template>
 
@@ -190,10 +189,6 @@ a.chip:hover {
   margin-top: 6px;
 }
 
-.rocket {
-  position: absolute;
-  top: 6px;
-  right: 130px;
   width: 116px;
   pointer-events: none;
 }
