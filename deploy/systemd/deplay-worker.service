@@ -23,9 +23,9 @@ RestartSec=5
 
 # Doit être à false : avec true, sudo ne peut pas élever les droits pour nginx-site.sh
 NoNewPrivileges=false
-ProtectHome=true
+ProtectHome=read-only
 PrivateTmp=true
-ReadWritePaths=/opt/deplay/prisma /opt/deplay/storage
+ReadWritePaths=/opt/deplay/prisma /opt/deplay/storage /home/deplay
 
 [Install]
 WantedBy=multi-user.target
