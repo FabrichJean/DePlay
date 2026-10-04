@@ -39,7 +39,11 @@ export function siteTraffic(name: string): Promise<SiteTraffic> {
   const previous = queues.get(name) ?? Promise.resolve()
   const next = previous.then(() => refresh(name))
   queues.set(name, next.catch(() => {}))
-  return next.then(summarize).catch(() => summarize(emptyState()))
+  return next.then(summarize).catch((error) => {
+    // Erreur inattendue (droits, disque) : on le signale au lieu d'afficher 0 en silence
+    console.warn(`[traffic] cannot read logs for ${name}: ${(error as Error).message}`)
+    return summarize(emptyState())
+  })
 }
 
 function emptyState(): LogState {
@@ -48,7 +52,8 @@ function emptyState(): LogState {
 
 async function refresh(name: string): Promise<LogState> {
   const path = join(LOG_DIR, `deplay-${name}.log`)
-  const info = await stat(path).catch(() => null)
+  // Fichier absent = site pas encore visité ; toute autre erreur (droits) remonte
+  const info = await stat(path).catch((error: NodeJS.ErrnoException) => (error.code === 'ENOENT' ? null : Promise.reject(error)))
   let state = states.get(name) ?? emptyState()
 
   if (info) {
