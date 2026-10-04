@@ -18,7 +18,7 @@ withDefaults(
 
       <DeploymentProgress :steps="deployment.steps" />
 
-      <DeploymentLogs :lines="deployment.logs" :duration="deployment.duration" live />
+      <DeploymentLogs :deployment="deployment" :lines="deployment.logs" :duration="deployment.duration" live />
 
       <div class="metrics">
         <MetricCard
