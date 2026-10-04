@@ -18,12 +18,15 @@ async function connectGithub() {
   connectError.value = ''
   connecting.value = true
   try {
-    // Clerk redirige vers GitHub, puis revient sur /sso-callback
-    await user.value?.createExternalAccount({
+    // Clerk renvoie l'adresse d'autorisation GitHub : c'est à nous de rediriger vers elle, puis GitHub revient sur /sso-callback
+    const account = await user.value?.createExternalAccount({
       strategy: 'oauth_github',
       redirectUrl: `${window.location.origin}/sso-callback`,
       additionalScopes: ['repo'],
     })
+    const authorizeUrl = account?.verification?.externalVerificationRedirectURL?.toString()
+    if (!authorizeUrl) throw new Error('GitHub did not return an authorization link. Please try again.')
+    window.location.href = authorizeUrl
   } catch (cause) {
     console.error('Connect GitHub failed:', cause)
     connectError.value = (cause as Error).message || 'Could not connect GitHub.'
