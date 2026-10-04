@@ -1,9 +1,25 @@
 #!/bin/sh
 # Met à jour Deplay sur le VPS depuis origin/main. À lancer en root : sudo /opt/deplay/deploy/update.sh
 #
+# Options :
+#   --no-dep   ne réinstalle pas les dépendances (à utiliser si package.json et package-lock.json n'ont pas changé)
+#   --help     affiche cette aide
+#
 # Ne touche jamais aux données : .env, storage/, prisma/dev.db et node_modules/.output sont ignorés par Git.
 # Étapes : récupération du code, dépendances, build (Node 22), migrations, redémarrage app (pm2) et worker (systemd).
 set -eu
+
+NO_DEP=0
+for arg in "$@"; do
+  case "$arg" in
+    --no-dep) NO_DEP=1 ;;
+    --help|-h)
+      sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'
+      exit 0
+      ;;
+    *) echo "option inconnue : $arg (voir --help)" >&2; exit 2 ;;
+  esac
+done
 
 APP=/opt/deplay
 export PATH=/opt/deplay/bin:/opt/node22/bin:/usr/local/bin:/usr/bin:/bin
@@ -16,8 +32,12 @@ git fetch --quiet origin main
 git merge --ff-only origin/main
 echo "version : $(git log -1 --oneline)"
 
-echo "==> dépendances"
-npm ci --no-audit --no-fund
+if [ "$NO_DEP" -eq 1 ]; then
+  echo "==> dépendances : ignorées (--no-dep)"
+else
+  echo "==> dépendances"
+  npm ci --no-audit --no-fund
+fi
 
 echo "==> build"
 set -a
