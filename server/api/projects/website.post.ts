@@ -1,5 +1,6 @@
 import type { FrameworkPreset, WebsiteProjectInput } from '../../../types/website'
 import type { StoredFile } from '../../utils/project-storage'
+import { unzipSync } from 'fflate'
 
 const PRESETS: FrameworkPreset[] = ['nuxt', 'next', 'vite', 'static']
 const NAME_PATTERN = /^[a-z0-9-]{3,40}$/
@@ -12,7 +13,43 @@ interface ParsedRequest {
   totalBytes: number
 }
 
-// Accepte du JSON (dépôt Git) ou du multipart (fichiers déposés + champ « config »)
+const MAX_FILES = 5000
+
+// Décompresse l'archive. Le contrôle se fait avant la décompression, à partir du répertoire central du zip,
+// pour qu'une archive piégée (« zip bomb ») ne sature pas la mémoire.
+function extractArchive(body: Partial<WebsiteProjectInput>, data: Buffer): ParsedRequest {
+  let count = 0
+  let totalBytes = 0
+  let entries: Record<string, Uint8Array>
+
+  try {
+    entries = unzipSync(new Uint8Array(data), {
+      filter(file) {
+        if (file.name.endsWith('/')) return false // dossiers : rien à écrire
+        count++
+        totalBytes += file.originalSize
+        if (count > MAX_FILES) throw createError({ statusCode: 413, statusMessage: 'Too many files in the archive' })
+        if (totalBytes > MAX_UPLOAD_BYTES) {
+          throw createError({ statusCode: 413, statusMessage: 'Uncompressed upload exceeds 200 MB' })
+        }
+        return true
+      },
+    })
+  } catch (error) {
+    if ((error as { statusCode?: number }).statusCode) throw error
+    throw createError({ statusCode: 400, statusMessage: 'Invalid archive' })
+  }
+
+  const names = Object.keys(entries)
+  return {
+    body,
+    files: names.map((name) => ({ path: name, data: Buffer.from(entries[name]) })),
+    fileCount: names.length,
+    totalBytes,
+  }
+}
+
+// Accepte du JSON (dépôt Git) ou du multipart (archive, ou fichiers déposés + champ « config »)
 async function parseRequest(event: Parameters<typeof readBody>[0]): Promise<ParsedRequest> {
   const contentType = getHeader(event, 'content-type') ?? ''
 
@@ -28,6 +65,12 @@ async function parseRequest(event: Parameters<typeof readBody>[0]): Promise<Pars
     body = config?.data ? JSON.parse(config.data.toString('utf8')) : {}
   } catch {
     throw createError({ statusCode: 400, statusMessage: 'Invalid configuration payload' })
+  }
+
+  // Archive zip (envoi optimisé depuis le navigateur)
+  const archive = parts.find((part) => part.name === 'archive' && part.data)
+  if (archive) {
+    return extractArchive(body, archive.data)
   }
 
   const uploads = parts.filter((part) => part.name === 'files' && part.filename)
