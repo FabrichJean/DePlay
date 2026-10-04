@@ -25,6 +25,7 @@ const errors = ref<Partial<Record<keyof WebsiteProjectInput | 'files', string>>>
 const submitting = ref(false)
 const submitError = ref('')
 const uploadProgress = ref<UploadProgress | null>(null)
+const { getToken } = useAuth()
 
 const phaseLabel = computed(() => {
   const labels = {
@@ -155,9 +156,16 @@ async function submit() {
       const body = new FormData()
       body.append('config', JSON.stringify({ ...form }))
       body.append('archive', archive, 'project.zip')
-      created.value = await postWithProgress<CreatedProject>('/api/projects/website', body, (progress) => {
-        uploadProgress.value = progress
-      })
+      // Jeton frais juste avant l'envoi : la préparation peut durer plusieurs minutes
+      const token = await getToken()
+      created.value = await postWithProgress<CreatedProject>(
+        '/api/projects/website',
+        body,
+        (progress) => {
+          uploadProgress.value = progress
+        },
+        token ? { Authorization: `Bearer ${token}` } : {},
+      )
     } else {
       created.value = await $fetch<CreatedProject>('/api/projects/website', {
         method: 'POST',
