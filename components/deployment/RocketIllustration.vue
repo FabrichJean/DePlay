@@ -14,8 +14,9 @@
 
 <style scoped>
 .rocket-img {
+  /* Pas de largeur ici : le parent décide de la taille (sinon il ne peut plus la réduire) */
   display: block;
-  width: 100%;
+  max-width: 100%;
   height: auto;
 }
 </style>
