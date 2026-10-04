@@ -1,9 +1,14 @@
 <script setup lang="ts">
 import type { Project } from '~/types/project'
 
-const props = defineProps<{
-  project: Project
-}>()
+const props = withDefaults(
+  defineProps<{
+    project: Project
+    /** Masqué sur la page du projet, où « Manage » ne mènerait nulle part */
+    showManage?: boolean
+  }>(),
+  { showManage: true },
+)
 
 const route = useRoute()
 const root = ref<HTMLElement | null>(null)
