@@ -1,6 +1,7 @@
 <template>
   <div class="promo">
-    <AppIcon name="rocket" :size="26" class="promo-icon" />
+    <!-- Fusée en décor de fond : atténuée, sans interaction -->
+    <RocketIllustration class="promo-bg" />
     <p class="promo-title">Small steps<br />build big things.</p>
     <p class="promo-text">Every deployment<br />is a step closer to your goals.</p>
   </div>
@@ -8,16 +9,20 @@
 
 <style scoped>
 .promo {
-  margin: auto 0 22px;
+  position: relative;
+  overflow: hidden;
+  margin: auto 0 16px;
   padding: 20px;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   background: linear-gradient(180deg, rgba(59, 130, 246, 0.06), transparent 70%), var(--card);
 }
 
-.promo-icon {
-  color: var(--primary);
-  margin-bottom: 18px;
+.promo-bg {
+  position: absolute;
+  left: 62%;
+  bottom: -26px;
+  transform: translateX(-50%);
 }
 
 .promo-title {
