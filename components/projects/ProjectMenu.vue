@@ -5,6 +5,7 @@ const props = defineProps<{
   project: Project
 }>()
 
+const route = useRoute()
 const root = ref<HTMLElement | null>(null)
 const open = ref(false)
 const confirming = ref(false)
@@ -52,6 +53,11 @@ async function remove() {
   try {
     await $fetch(`/api/projects/${props.project.id}`, { method: 'DELETE' })
     close()
+    // Depuis la page du projet supprimé, on revient à la liste
+    if (route.path.startsWith('/projects/')) {
+      await navigateTo('/')
+      return
+    }
     // Recharge la liste des projets pour retirer la carte
     await refreshNuxtData('projects')
   } catch {
@@ -104,7 +110,7 @@ onBeforeUnmount(() => {
           Visit
         </span>
 
-        <NuxtLink :to="`/projects/${project.id}`" class="item" role="menuitem" @click="close">
+        <NuxtLink v-if="showManage" :to="`/projects/${project.id}`" class="item" role="menuitem" @click="close">
           <AppIcon name="settings" :size="15" />
           Manage
         </NuxtLink>
