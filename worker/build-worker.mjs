@@ -411,10 +411,11 @@ async function build(deployment) {
       log.line('Isolation: none (commands run on the host)', 'muted')
     }
 
-    // Avec un fichier de verrouillage, npm ci est plus rapide et reproductible ; npm install en repli
+    // Avec un fichier de verrouillage : npm ci (rapide, reproductible), puis npm install, puis sans le lockfile
+    // si celui-ci est cassé (ex. entrées sans version générées sous Windows)
     let installCommand = project.installCommand
     if (/^npm (install|i)\b/.test(installCommand) && (await stat(join(appDir, 'package-lock.json')).catch(() => null))) {
-      installCommand = `${installCommand.replace(/^npm (install|i)\b/, 'npm ci')} || ${installCommand}`
+      installCommand = `${installCommand.replace(/^npm (install|i)\b/, 'npm ci')} || ${installCommand} || ${installCommand} --no-package-lock`
     }
     if (installCommand) {
       log.line(`$ ${installCommand}`)
