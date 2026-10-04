@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import type { IconName } from '~/constants/icons'
-import type { LogLine } from '~/types/deployment'
+import type { Deployment, LogLine } from '~/types/deployment'
 
 const props = defineProps<{
+  deployment?: Deployment
   lines: LogLine[]
   duration: string
   live?: boolean
@@ -87,6 +88,11 @@ async function copyLogs() {
         </div>
       </template>
 
+      <div v-else-if="deployment" class="panel">
+        <BuildInfoPanel v-if="activeTab === 'build'" :deployment="deployment" />
+        <EnvironmentPanel v-else-if="activeTab === 'environment'" :deployment="deployment" />
+        <DetailsPanel v-else-if="activeTab === 'details'" :deployment="deployment" />
+      </div>
       <p v-else class="terminal-empty">No data available for this tab yet.</p>
     </div>
 
@@ -184,6 +190,12 @@ async function copyLogs() {
 
 .tone-success {
   color: var(--primary);
+}
+
+.panel {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text);
 }
 
 .terminal-empty {
