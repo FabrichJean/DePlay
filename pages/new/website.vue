@@ -24,6 +24,7 @@ const uploadedFiles = ref<File[]>([])
 const errors = ref<Partial<Record<keyof WebsiteProjectInput | 'files', string>>>({})
 const submitting = ref(false)
 const submitError = ref('')
+const uploadProgress = ref<UploadProgress | null>(null)
 const created = ref<CreatedProject | null>(null)
 
 // Résumé affiché sous chaque étape terminée
@@ -125,7 +126,9 @@ async function submit() {
       for (const file of uploadedFiles.value) {
         body.append('files', file, file.webkitRelativePath || file.name)
       }
-      created.value = await $fetch<CreatedProject>('/api/projects/website', { method: 'POST', body })
+      created.value = await postWithProgress<CreatedProject>('/api/projects/website', body, (progress) => {
+        uploadProgress.value = progress
+      })
     } else {
       created.value = await $fetch<CreatedProject>('/api/projects/website', {
         method: 'POST',
@@ -142,6 +145,7 @@ async function submit() {
     submitError.value = fieldError ?? body?.statusMessage ?? 'Could not create the project. Please try again.'
   } finally {
     submitting.value = false
+    uploadProgress.value = null
   }
 }
 </script>
@@ -178,6 +182,17 @@ async function submit() {
           </template>
         </WizardStepper>
       </section>
+
+      <div v-if="uploadProgress" class="progress" role="status" aria-live="polite">
+        <div class="progress-head">
+          <span>{{ uploadProgress.phase === 'sending' ? 'Uploading files…' : 'Processing on server…' }}</span>
+          <span>{{ uploadProgress.percent }}%</span>
+        </div>
+        <div class="progress-bar" role="progressbar" :aria-valuenow="uploadProgress.percent" aria-valuemin="0" aria-valuemax="100">
+          <span :style="{ width: `${uploadProgress.percent}%` }" />
+        </div>
+        <p class="muted">{{ formatBytes(uploadProgress.loaded) }} / {{ formatBytes(uploadProgress.total) }}</p>
+      </div>
 
       <p v-if="submitError" class="banner">{{ submitError }}</p>
 
@@ -266,6 +281,37 @@ h1 {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
+}
+
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--card);
+}
+
+.progress-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.progress-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.progress-bar span {
+  display: block;
+  height: 100%;
+  background: var(--primary);
+  transition: width 0.2s ease;
 }
 
 .banner {
