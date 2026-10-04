@@ -133,7 +133,7 @@ const user = {
 }
 
 .user {
-  margin-top: auto;
+  margin-top: 0;
   display: flex;
   align-items: center;
   gap: 12px;
