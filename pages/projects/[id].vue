@@ -73,15 +73,7 @@ onBeforeUnmount(stopPolling)
 
 <template>
   <div v-if="details" class="project-page">
-    <div class="actions-bar">
-      <p v-if="actionError" class="error">{{ actionError }}</p>
-      <button class="btn btn-primary" type="button" :disabled="busy" @click="redeploy">
-        <AppIcon name="refresh" :size="14" />
-        {{ redeploying ? 'Starting…' : 'Redeploy' }}
-      </button>
-    </div>
-
-    <DeploymentDetails :deployment="details" compact />
+    <DeploymentDetails :deployment="details" :project="project" compact />
   </div>
 
   <section v-else-if="project" class="empty card">
