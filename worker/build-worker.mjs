@@ -418,7 +418,14 @@ async function build(deployment) {
     }
     if (installCommand) {
       log.line(`$ ${installCommand}`)
-      await run('sh', ['-c', installCommand], { cwd: appDir, log, sandbox: installSandbox })
+      try {
+        await run('sh', ['-c', installCommand], { cwd: appDir, log, sandbox: installSandbox })
+      } catch (error) {
+        // Un cache npm abîmé ne doit pas bloquer le build : nouvelle tentative sans cache
+        if (!cacheDir) throw error
+        log.line('Install failed with the account cache, retrying without it', 'muted')
+        await run('sh', ['-c', installCommand], { cwd: appDir, log, sandbox: { ...installSandbox, cacheDir: undefined } })
+      }
     }
     if (project.buildCommand) {
       log.line(`$ ${project.buildCommand}`)
