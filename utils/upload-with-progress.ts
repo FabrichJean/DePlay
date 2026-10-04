@@ -1,6 +1,6 @@
 export interface UploadProgress {
   /** « sending » pendant l'envoi, « processing » quand tout est envoyé et que le serveur écrit les fichiers */
-  phase: 'sending' | 'processing'
+  phase: 'preparing' | 'sending' | 'processing'
   loaded: number
   total: number
   percent: number
