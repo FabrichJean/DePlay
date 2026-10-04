@@ -11,8 +11,20 @@ const files = defineModel<File[]>('files', { default: () => [] })
 
 // Lie le compte GitHub à Clerk (y compris pour un compte connecté par email) avec le droit d'accès aux dépôts
 const { user } = useUser()
+const clerk = useClerk()
 const connecting = ref(false)
 const connectError = ref('')
+
+function clerkMessage(cause: unknown): string {
+  const first = (cause as { errors?: { longMessage?: string, message?: string }[] }).errors?.[0]
+  return first?.longMessage || first?.message || (cause as Error).message || 'Could not connect GitHub.'
+}
+
+// Clerk exige une vérification récente du compte (mot de passe, code) avant de lier un compte externe
+function needsVerification(cause: unknown): boolean {
+  const first = (cause as { errors?: { code?: string, message?: string }[] }).errors?.[0]
+  return first?.code?.includes('reverification') || first?.message?.includes('additional verification') || false
+}
 
 async function connectGithub() {
   connectError.value = ''
@@ -28,9 +40,18 @@ async function connectGithub() {
     if (!authorizeUrl) throw new Error('GitHub did not return an authorization link. Please try again.')
     window.location.href = authorizeUrl
   } catch (cause) {
+    if (needsVerification(cause)) {
+      // Vérification puis nouvelle tentative automatique ; annulation = on revient au bouton
+      clerk.value.__internal_openReverification({
+        afterVerification: () => connectGithub(),
+        afterVerificationCancelled: () => {
+          connecting.value = false
+        },
+      })
+      return
+    }
     console.error('Connect GitHub failed:', cause)
-    const clerkError = (cause as { errors?: { longMessage?: string, message?: string }[] }).errors?.[0]
-    connectError.value = clerkError?.longMessage || clerkError?.message || (cause as Error).message || 'Could not connect GitHub.'
+    connectError.value = clerkMessage(cause)
     connecting.value = false
   }
 }
