@@ -10,14 +10,19 @@ Group=deplay
 WorkingDirectory=/opt/deplay
 EnvironmentFile=/opt/deplay/.env
 Environment=NODE_ENV=production BUILD_ISOLATION=docker
-ExecStart=/usr/bin/node /opt/deplay/worker/build-worker.mjs
+Environment=HOME=/home/deplay XDG_RUNTIME_DIR=/run/user/997
+Environment=PATH=/opt/deplay/bin:/opt/node22/bin:/usr/local/bin:/usr/bin:/bin
+# Podman rootless a besoin d'un cgroup délégué pour appliquer les limites de ressources des builds
+Delegate=yes
+ExecStart=/opt/node22/bin/node /opt/deplay/worker/build-worker.mjs
 # Arrêt propre : le worker arrête ses sites publiés avant de quitter
 KillSignal=SIGTERM
 TimeoutStopSec=30
 Restart=on-failure
 RestartSec=5
 
-NoNewPrivileges=true
+# Doit être à false : avec true, sudo ne peut pas élever les droits pour nginx-site.sh
+NoNewPrivileges=false
 ProtectHome=true
 PrivateTmp=true
 ReadWritePaths=/opt/deplay/prisma /opt/deplay/storage
