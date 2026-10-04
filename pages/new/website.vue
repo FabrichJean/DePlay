@@ -157,7 +157,8 @@ async function submit() {
       body.append('config', JSON.stringify({ ...form }))
       body.append('archive', archive, 'project.zip')
       // Jeton frais juste avant l'envoi : la préparation peut durer plusieurs minutes
-      const token = await getToken()
+      // useAuth renvoie getToken sous forme réactive : on en extrait la fonction
+      const token = await unref(getToken)()
       created.value = await postWithProgress<CreatedProject>(
         '/api/projects/website',
         body,
