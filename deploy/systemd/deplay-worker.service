@@ -21,7 +21,7 @@ TimeoutStopSec=30
 Restart=on-failure
 RestartSec=5
 
-# Doit être à false : avec true, sudo ne peut pas élever les droits pour nginx-site.sh
+# Peut rester à false : le worker n'appelle plus sudo (sites écrits dans DEPLOY_SITES_DIR)
 NoNewPrivileges=false
 ProtectHome=false
 PrivateTmp=true
