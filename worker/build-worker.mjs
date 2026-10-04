@@ -416,7 +416,8 @@ async function flattenSingleFolder(dir) {
 
 // Redéploiement : arrête l'ancien site du projet et renvoie son port, pour que le nouveau le reprenne
 async function releasePreviousPort(projectId, currentId, log) {
-  if (!projectId) return undefined
+  // En mode subdomain, il n'y a pas de port à récupérer : l'URL est un nom de domaine
+  if (!projectId || SITE_MODE === 'subdomain') return undefined
 
   const previous = await prisma.deployment.findFirst({
     where: { projectId, id: { not: currentId }, url: { not: '' } },
@@ -466,6 +467,24 @@ async function removePreviousBuilds(projectId, currentId, currentRoot, log) {
     await rm(root, { recursive: true, force: true })
     await prisma.deployment.update({ where: { id: row.id }, data: { buildDir: '' } })
     log.line(`Removed previous build ${root}`)
+  }
+}
+
+// Mode subdomain : arrête les processus serveur des anciens déploiements du projet.
+// La configuration nginx est réutilisée (même nom de domaine), elle n'est donc pas retirée.
+async function stopPreviousSites(projectId, currentId, log) {
+  if (!projectId || SITE_MODE !== 'subdomain') return
+
+  const previous = await prisma.deployment.findMany({
+    where: { projectId, id: { not: currentId } },
+    select: { id: true },
+  })
+  for (const { id } of previous) {
+    const server = running.get(id)
+    if (!server) continue
+    await server.stop()
+    running.delete(id)
+    log.line('Stopped previous server process', 'muted')
   }
 }
 
@@ -533,6 +552,8 @@ async function build(deployment) {
 
     const previousPort = await releasePreviousPort(deployment.projectId, deployment.id, log)
     const url = await publish(deployment.id, outDir, log, previousPort, project.name)
+    // Une fois le nouveau site en ligne, on arrête les anciens processus (sans toucher à nginx)
+    await stopPreviousSites(deployment.projectId, deployment.id, log)
     log.line(`Live at ${url}`, 'success')
     await removePreviousBuilds(deployment.projectId, deployment.id, workDir, log)
 
