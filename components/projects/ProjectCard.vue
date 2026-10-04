@@ -38,6 +38,10 @@ const color = computed(() => STATUS_META[props.project.status].color)
             <dd>{{ project.stats.deployments }}</dd>
           </div>
           <div>
+            <dt>Visits</dt>
+            <dd>{{ project.stats.visits }}</dd>
+          </div>
+          <div>
             <dt>Requests</dt>
             <dd>{{ project.stats.requests }}</dd>
           </div>
@@ -155,8 +159,8 @@ const color = computed(() => STATUS_META[props.project.status].color)
 
 .stats {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 8px;
   margin: 14px 0 0;
 }
 

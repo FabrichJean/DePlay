@@ -5,6 +5,7 @@ export type ProjectStatus = 'live' | 'building' | 'attention'
 
 export interface ProjectStats {
   deployments: number
+  visits: string
   requests: string
   errors: string
 }

@@ -23,6 +23,10 @@ defineProps<{
         <dd>{{ project.stats.deployments }}</dd>
       </div>
       <div>
+        <dt>Visits</dt>
+        <dd>{{ project.stats.visits }}</dd>
+      </div>
+      <div>
         <dt>Requests</dt>
         <dd>{{ project.stats.requests }}</dd>
       </div>

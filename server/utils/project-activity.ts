@@ -11,10 +11,14 @@ export interface ProjectActivity {
   lastBranch: string
   /** Requêtes sur les 14 derniers jours, d'après le journal nginx du site */
   requests: number
+  /** Visites (pages) sur les 14 derniers jours */
+  visits: number
   /** Réponses 5xx sur les 14 derniers jours */
   errors: number
   /** Requêtes par jour, du plus ancien au plus récent */
   dailyRequests: number[]
+  /** Visites par jour, du plus ancien au plus récent */
+  dailyVisits: number[]
 }
 
 // Activité réelle des projets : déploiements en base, trafic dans les journaux des sites
@@ -26,8 +30,10 @@ export async function projectActivity(projects: { id: string, name: string }[]):
       lastAt: null,
       lastBranch: '',
       requests: 0,
+      visits: 0,
       errors: 0,
       dailyRequests: new Array(SPARKLINE_DAYS).fill(0),
+      dailyVisits: new Array(SPARKLINE_DAYS).fill(0),
     })
   }
   if (!projects.length) return result
@@ -53,8 +59,10 @@ export async function projectActivity(projects: { id: string, name: string }[]):
     const activity = result.get(project.id)
     if (!activity) return
     activity.requests = traffic[index].requests
+    activity.visits = traffic[index].visits
     activity.errors = traffic[index].errors
     activity.dailyRequests = traffic[index].daily
+    activity.dailyVisits = traffic[index].dailyVisits
   })
 
   return result

@@ -50,9 +50,11 @@ export function toProject(row: ProjectRow, activity?: ProjectActivity): Project 
     updatedLabel: relativeLabel(lastActivity),
     stats: {
       deployments: activity?.deployments ?? 0,
+      visits: formatCount(activity?.visits ?? 0),
       requests: formatCount(activity?.requests ?? 0),
       errors: errorRate(activity),
     },
-    sparkline: activity?.dailyRequests ?? [],
+    // La courbe suit les visites : c'est ce qui se rapproche le plus de l'audience
+    sparkline: activity?.dailyVisits ?? [],
   }
 }

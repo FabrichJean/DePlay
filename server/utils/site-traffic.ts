@@ -7,10 +7,12 @@ const DAY_MS = 24 * 60 * 60 * 1000
 const WINDOW_DAYS = 14
 // Premier passage : on ne lit pas plus que ça d'un coup (un journal peut être très gros)
 const MAX_INITIAL_BYTES = 32 * 1024 * 1024
-const LINE = /\[([^\]]+)\] "[^"]*" (\d{3}) /
+// Ligne nginx : capture la date, la méthode, le chemin et le code HTTP
+const LINE = /\[([^\]]+)\] "(\S+) (\S+)[^"]*" (\d{3}) /
 
 interface Bucket {
   requests: number
+  visits: number
   errors: number
 }
 
@@ -24,10 +26,14 @@ interface LogState {
 export interface SiteTraffic {
   /** Requêtes sur les 14 derniers jours */
   requests: number
+  /** Visites (pages HTML) sur les 14 derniers jours */
+  visits: number
   /** Réponses 5xx sur les 14 derniers jours */
   errors: number
   /** Requêtes par jour, du plus ancien au plus récent */
   daily: number[]
+  /** Visites par jour, du plus ancien au plus récent */
+  dailyVisits: number[]
 }
 
 const states = new Map<string, LogState>()
@@ -88,16 +94,27 @@ async function refresh(name: string): Promise<LogState> {
 function tally(state: LogState, line: string) {
   const match = LINE.exec(line)
   if (!match) return
+  const [, date, method, path, code] = match
+  const status = Number(code)
 
   // « 04/Oct/2026:17:04:45 +0200 » → « 04 Oct 2026 17:04:45 +0200 », lisible par Date
-  const time = Date.parse(match[1].replace(/\//g, ' ').replace(':', ' '))
+  const time = Date.parse(date.replace(/\//g, ' ').replace(':', ' '))
   if (Number.isNaN(time)) return
 
   const day = Math.floor(time / DAY_MS)
-  const bucket = state.days.get(day) ?? { requests: 0, errors: 0 }
+  const bucket = state.days.get(day) ?? { requests: 0, visits: 0, errors: 0 }
   bucket.requests++
-  if (Number(match[2]) >= 500) bucket.errors++
+  if (isVisit(method, path, status)) bucket.visits++
+  if (status >= 500) bucket.errors++
   state.days.set(day, bucket)
+}
+
+// Une visite : une page (GET réussi ou resté en cache) et non un fichier (script, style, image, favicon)
+function isVisit(method: string, path: string, status: number): boolean {
+  if (method !== 'GET' || (status !== 200 && status !== 304)) return false
+  const pathname = path.split('?')[0]
+  const last = pathname.split('/').pop() ?? ''
+  return pathname.endsWith('/') || last === '' || !last.includes('.') || /\.html?$/i.test(last)
 }
 
 function pruneDays(state: LogState) {
@@ -114,15 +131,19 @@ function today(): number {
 function summarize(state: LogState): SiteTraffic {
   const first = today() - WINDOW_DAYS + 1
   const daily: number[] = []
+  const dailyVisits: number[] = []
   let requests = 0
+  let visits = 0
   let errors = 0
 
   for (let index = 0; index < WINDOW_DAYS; index++) {
     const bucket = state.days.get(first + index)
     daily.push(bucket?.requests ?? 0)
+    dailyVisits.push(bucket?.visits ?? 0)
     requests += bucket?.requests ?? 0
+    visits += bucket?.visits ?? 0
     errors += bucket?.errors ?? 0
   }
 
-  return { requests, errors, daily }
+  return { requests, visits, errors, daily, dailyVisits }
 }
