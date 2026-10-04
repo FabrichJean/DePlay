@@ -38,6 +38,10 @@ const CLONE_IMAGE = process.env.CLONE_IMAGE ?? 'docker.io/alpine/git'
 // Ressources par build : 1 CPU et 1 Go, pour qu'on puisse en lancer plusieurs
 const BUILD_MEMORY = process.env.BUILD_MEMORY ?? '1g'
 const BUILD_CPUS = process.env.BUILD_CPUS ?? '1'
+// L'installation des dépendances est gourmande en CPU : elle a plus de cœurs que le build
+const INSTALL_CPUS = process.env.INSTALL_CPUS ?? '2'
+// Cache npm par compte (jamais partagé entre comptes)
+const BUILD_CACHE_DIR = resolve(process.env.BUILD_CACHE_DIR ?? './storage/cache')
 const BUILD_PIDS = process.env.BUILD_PIDS ?? '512'
 
 // Sites statiques : dossier servi par nginx (un seul bloc *.fabrich.site, voir deploy/nginx/deplay-sites.conf)
@@ -159,7 +163,7 @@ async function chownTree(dir) {
 }
 
 // Commande docker : seul workDir est monté, sans secret, avec des limites de ressources
-function dockerArgs({ image, name, workDir, cwd, command, args, passEnv = [] }) {
+function dockerArgs({ image, name, workDir, cwd, command, args, passEnv = [], cpus = BUILD_CPUS, memory = BUILD_MEMORY, cacheDir }) {
   const inside = cwd === workDir ? '/work' : `/work/${cwd.slice(workDir.length + 1)}`
   return [
     'run', '--rm', '--name', name,
@@ -167,9 +171,10 @@ function dockerArgs({ image, name, workDir, cwd, command, args, passEnv = [] }) 
     '--cap-drop', 'ALL',
     '--security-opt', 'no-new-privileges',
     '--read-only', '--tmpfs', '/tmp:rw,exec,nosuid,size=1g',
-    '--memory', BUILD_MEMORY, '--memory-swap', BUILD_MEMORY,
-    '--cpus', BUILD_CPUS, '--pids-limit', BUILD_PIDS,
+    '--memory', memory, '--memory-swap', memory,
+    '--cpus', cpus, '--pids-limit', BUILD_PIDS,
     '-v', `${workDir}:/work`, '-w', inside,
+    ...(cacheDir ? ['-v', `${cacheDir}:/npm-cache`, '-e', 'npm_config_cache=/npm-cache'] : []),
     '-e', 'HOME=/tmp', '-e', 'CI=1', '-e', 'GIT_TERMINAL_PROMPT=0', '-e', 'LANG=C.UTF-8',
     ...passEnv.flatMap((key) => ['-e', key]),
     '--entrypoint', command, image, ...args,
@@ -184,7 +189,7 @@ function run(command, args, { cwd, log, sandbox, env = {} }) {
     const name = `deplay-build-${randomBytes(6).toString('hex')}`
     // GIT_TERMINAL_PROMPT=0 : git échoue au lieu d'attendre un identifiant sur un dépôt inconnu
     const child = isolated
-      ? spawn('docker', dockerArgs({ image: sandbox.image, name, workDir: sandbox.workDir, cwd, command, args, passEnv: Object.keys(env) }), { env: { ...buildEnv(), ...env } })
+      ? spawn('docker', dockerArgs({ image: sandbox.image, name, workDir: sandbox.workDir, cwd, command, args, passEnv: Object.keys(env), cpus: sandbox.cpus, memory: sandbox.memory, cacheDir: sandbox.cacheDir }), { env: { ...buildEnv(), ...env } })
       : spawn(command, args, { cwd, env: { ...buildEnv(), ...env } })
 
     const timer = setTimeout(() => {
@@ -267,6 +272,15 @@ async function captureThumbnail(projectId, url, log) {
   } catch (error) {
     log.line(`Preview image not captured: ${error.message}`, 'muted')
   }
+}
+
+// Dossier de cache npm d'un compte, créé à la demande
+async function accountCacheDir(ownerKey) {
+  const safe = ownerKey.replace(/[^A-Za-z0-9_-]/g, '_')
+  const dir = join(BUILD_CACHE_DIR, safe, 'npm')
+  await mkdir(dir, { recursive: true })
+  if (process.getuid?.() === 0) await chown(dir, SANDBOX_UID, SANDBOX_GID)
+  return dir
 }
 
 // Taille totale d'un dossier, en octets
@@ -387,20 +401,28 @@ async function build(deployment) {
     const appDir = resolve(workDir, project.rootDirectory || '.')
     if (appDir !== workDir && !appDir.startsWith(workDir + sep)) throw new Error('root directory is outside the project')
 
-    const sandbox = { image: BUILD_IMAGE, workDir }
+    const cacheDir = ISOLATION === 'docker' ? await accountCacheDir(project.ownerId ?? `project-${project.id}`) : undefined
+    const installSandbox = { image: BUILD_IMAGE, workDir, cpus: INSTALL_CPUS, memory: BUILD_MEMORY, cacheDir }
+    const buildSandbox = { image: BUILD_IMAGE, workDir, cpus: BUILD_CPUS, memory: BUILD_MEMORY, cacheDir }
     if (ISOLATION === 'docker') {
       await chownTree(workDir)
-      log.line(`Isolation: Docker (${BUILD_IMAGE}, ${BUILD_MEMORY} RAM, ${BUILD_CPUS} CPU)`, 'muted')
+      log.line(`Isolation: Docker (${BUILD_IMAGE}, ${BUILD_MEMORY} RAM, ${BUILD_CPUS} CPU for build, ${INSTALL_CPUS} for install)`, 'muted')
     } else {
       log.line('Isolation: none (commands run on the host)', 'muted')
     }
-    if (project.installCommand) {
-      log.line(`$ ${project.installCommand}`)
-      await run('sh', ['-c', project.installCommand], { cwd: appDir, log, sandbox })
+
+    // Avec un fichier de verrouillage, npm ci est plus rapide et reproductible ; npm install en repli
+    let installCommand = project.installCommand
+    if (/^npm (install|i)\b/.test(installCommand) && (await stat(join(appDir, 'package-lock.json')).catch(() => null))) {
+      installCommand = `${installCommand.replace(/^npm (install|i)\b/, 'npm ci')} || ${installCommand}`
+    }
+    if (installCommand) {
+      log.line(`$ ${installCommand}`)
+      await run('sh', ['-c', installCommand], { cwd: appDir, log, sandbox: installSandbox })
     }
     if (project.buildCommand) {
       log.line(`$ ${project.buildCommand}`)
-      await run('sh', ['-c', project.buildCommand], { cwd: appDir, log, sandbox })
+      await run('sh', ['-c', project.buildCommand], { cwd: appDir, log, sandbox: buildSandbox })
     }
     await updateSteps(deployment.id, (steps) => setStep(setStep(steps, 'build', 'done', formatDuration(Date.now() - started)), 'test', 'done', '—'))
 
