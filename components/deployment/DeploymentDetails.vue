@@ -2,7 +2,7 @@
 import type { Deployment } from '~/types/deployment'
 import type { Project } from '~/types/project'
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     deployment: Deployment
     /** Projet propriétaire : active le menu Visit / Redeploy / Delete dans l'en-tête */
@@ -11,6 +11,15 @@ withDefaults(
     compact?: boolean
   }>(),
   { compact: false },
+)
+
+// Fête le passage de « en cours » à « déployé » (premier déploiement ou redéploiement),
+// pas l'ouverture d'une page dont le site est déjà en ligne
+watch(
+  () => props.deployment.status,
+  (next, previous) => {
+    if (previous === 'building' && next === 'deployed') fireConfetti()
+  },
 )
 </script>
 
