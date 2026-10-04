@@ -257,6 +257,8 @@ async function captureThumbnail(projectId, url, log) {
     if (!args) throw new Error('thumbnails need BUILD_ISOLATION=docker')
     await new Promise((done, fail) => {
       const child = spawn('docker', args, { env: buildEnv() })
+      let stderr = ''
+      child.stderr.on('data', (chunk) => (stderr += chunk))
       const timer = setTimeout(() => {
         spawn('docker', ['kill', name], { stdio: 'ignore' })
         child.kill('SIGKILL')
@@ -264,7 +266,8 @@ async function captureThumbnail(projectId, url, log) {
       child.on('error', fail)
       child.on('close', (code) => {
         clearTimeout(timer)
-        code === 0 ? done() : fail(new Error(`capture exited with ${code}`))
+        // La fin de l'erreur du conteneur indique la cause (droits, image, réseau)
+        code === 0 ? done() : fail(new Error(`capture exited with ${code}: ${stderr.trim().split('\n').slice(-2).join(' ').slice(0, 240)}`))
       })
     })
     await prisma.project.update({ where: { id: projectId }, data: { thumbnailAt: new Date() } })
