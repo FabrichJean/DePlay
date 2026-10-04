@@ -179,7 +179,10 @@ async function submit() {
     // Affiche le message renvoyé par l'API (ex. « Upload exceeds 200 MB »), sinon un message générique
     const body = (error as { data?: { statusMessage?: string; data?: { errors?: Record<string, string> } } }).data
     const fieldError = body?.data?.errors ? Object.values(body.data.errors)[0] : undefined
-    submitError.value = fieldError ?? body?.statusMessage ?? 'Could not create the project. Please try again.'
+    // Erreur côté navigateur (préparation, jeton, réseau) : on affiche son vrai message
+    console.error('Project creation failed:', error)
+    const clientMessage = error instanceof Error ? error.message : undefined
+    submitError.value = fieldError ?? body?.statusMessage ?? clientMessage ?? 'Could not create the project. Please try again.'
   } finally {
     submitting.value = false
     uploadProgress.value = null

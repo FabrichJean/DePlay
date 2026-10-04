@@ -14,6 +14,11 @@ const deleteError = ref('')
 
 const siteUrl = computed(() => (props.project.url ? absoluteUrl(props.project.url) : ''))
 
+function toggle() {
+  open.value = !open.value
+  confirming.value = false
+}
+
 function close() {
   open.value = false
   confirming.value = false
@@ -86,7 +91,7 @@ onBeforeUnmount(() => {
       aria-label="More actions"
       aria-haspopup="menu"
       :aria-expanded="open"
-      @click="open = !open; confirming = false"
+      @click="toggle"
     >
       <AppIcon name="more" :size="16" />
     </button>
@@ -147,6 +152,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .project-menu {
   position: relative;
+  z-index: 60;
 }
 
 .icon-btn.small {
