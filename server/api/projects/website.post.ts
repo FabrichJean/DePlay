@@ -107,6 +107,15 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Invalid website project', data: { errors } })
   }
 
+  // Quota par compte : les fichiers uploadés comptent dès l'envoi
+  if (isUpload) {
+    const used = await storageUsed(userId)
+    if (used + totalBytes > limits.storageQuotaBytes) {
+      const message = `Storage limit reached: ${formatMegabytes(used)} used of ${formatMegabytes(limits.storageQuotaBytes)}.`
+      throw createError({ statusCode: 413, statusMessage: message, data: { errors: { files: message } } })
+    }
+  }
+
   try {
     const row = await prisma.project.create({
       data: {
@@ -121,6 +130,7 @@ export default defineEventHandler(async (event) => {
         outputDirectory: body.outputDirectory?.trim() || '.',
         ownerId: userId,
         fileCount: isUpload ? fileCount : 0,
+        sourceBytes: isUpload ? totalBytes : 0,
         status: 'building',
       },
     })

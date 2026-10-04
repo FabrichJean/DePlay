@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE "Project" ADD COLUMN "sourceBytes" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "Project" ADD COLUMN "outputBytes" INTEGER NOT NULL DEFAULT 0;
+
+-- AlterTable
+ALTER TABLE "Deployment" ADD COLUMN "claimedAt" DATETIME;
