@@ -32,6 +32,10 @@ model Project {
   errorRate       String   @default("0%")
   /// Valeurs du sparkline séparées par des virgules
   sparkline       String   @default("")
+  /// Octets des fichiers uploadés (0 pour un dépôt Git)
+  sourceBytes     Int      @default(0)
+  /// Octets du dernier site publié (dossier de sortie)
+  outputBytes     Int      @default(0)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
@@ -62,6 +66,8 @@ model Deployment {
   metrics      String   @default("[]")
   /// Configuration de build au moment du déploiement (source, commandes, framework)
   build        String   @default("{}")
+  /// Date de prise en charge par le worker : vide tant que le build attend un emplacement
+  claimedAt    DateTime?
   /// Jeton GitHub pour cloner un dépôt privé : donné au worker puis effacé dès le début du build
   cloneToken   String?
   createdAt    DateTime @default(now())
