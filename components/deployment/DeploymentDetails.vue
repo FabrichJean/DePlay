@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Deployment } from '~/types/deployment'
+import type { Project } from '~/types/project'
 
 withDefaults(
   defineProps<{
@@ -14,7 +15,7 @@ withDefaults(
 <template>
   <div class="page" :class="{ 'is-compact': compact }">
     <div class="page-main">
-      <DeploymentHeader :deployment="deployment" />
+      <DeploymentHeader :deployment="deployment" :project="project" />
 
       <DeploymentProgress :steps="deployment.steps" />
 

@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import type { Deployment } from '~/types/deployment'
+import type { Project } from '~/types/project'
 
 defineProps<{
   deployment: Pick<
     Deployment,
     'name' | 'description' | 'type' | 'runtime' | 'environment' | 'url' | 'branch' | 'commit' | 'deployedAt' | 'status'
   >
+  /** Projet propriétaire : permet le menu Visit / Redeploy / Delete */
+  project?: Project
 }>()
 </script>
 
@@ -67,7 +70,8 @@ defineProps<{
           Visit App
           <AppIcon name="externalLink" :size="14" />
         </a>
-        <button class="icon-btn" type="button" aria-label="More actions">
+        <ProjectMenu v-if="project" :project="project" :show-manage="false" />
+        <button v-else class="icon-btn" type="button" aria-label="More actions">
           <AppIcon name="more" :size="18" />
         </button>
       </div>
