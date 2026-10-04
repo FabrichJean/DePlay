@@ -21,5 +21,6 @@ export function toDeployment(row: DeploymentRow): Deployment {
     info: JSON.parse(row.info),
     server: JSON.parse(row.server),
     metrics: JSON.parse(row.metrics),
+    build: JSON.parse(row.build || '{}'),
   }
 }

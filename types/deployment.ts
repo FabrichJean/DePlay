@@ -44,6 +44,18 @@ export interface ServerInfo {
   flag: string
 }
 
+export interface BuildInfo {
+  source: 'git' | 'upload'
+  repository: string
+  branch: string
+  preset: string
+  rootDirectory: string
+  installCommand: string
+  buildCommand: string
+  outputDirectory: string
+  fileCount: number
+}
+
 export interface Deployment {
   id: string
   name: string
@@ -62,4 +74,6 @@ export interface Deployment {
   info: AppInfo
   server: ServerInfo
   metrics: Metric[]
+  /** Configuration de build ; vide pour les déploiements créés avant ce champ */
+  build: Partial<BuildInfo>
 }
