@@ -26,12 +26,18 @@ onMounted(async () => {
       await new Promise((resolve) => setTimeout(resolve, 100))
     }
     // « Force » : l'adresse enregistrée au départ (souvent « / ») ne doit pas primer sur l'assistant
-    await clerk.value.handleRedirectCallback({
-      signInForceRedirectUrl: '/new/website',
-      signUpForceRedirectUrl: '/new/website',
-      signInFallbackRedirectUrl: '/new/website',
-      signUpFallbackRedirectUrl: '/new/website',
-    })
+    // customNavigate remplace la redirection de Clerk (qui renvoyait vers « / ») par notre destination
+    await clerk.value.handleRedirectCallback(
+      {
+        signInForceRedirectUrl: '/new/website',
+        signUpForceRedirectUrl: '/new/website',
+        signInFallbackRedirectUrl: '/new/website',
+        signUpFallbackRedirectUrl: '/new/website',
+      },
+      async () => {
+        await navigateTo('/new/website', { replace: true })
+      },
+    )
     // Recharge le compte pour voir la liaison GitHub, puis revient à l'assistant
     await user.value?.reload()
     clearTimeout(timer)
