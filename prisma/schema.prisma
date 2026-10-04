@@ -60,5 +60,7 @@ model Deployment {
   info         String   @default("{}")
   server       String   @default("{}")
   metrics      String   @default("[]")
+  /// Configuration de build au moment du déploiement (source, commandes, framework)
+  build        String   @default("{}")
   createdAt    DateTime @default(now())
 }
