@@ -25,7 +25,10 @@ onMounted(async () => {
     for (let attempt = 0; attempt < 100 && !clerk.value?.loaded; attempt++) {
       await new Promise((resolve) => setTimeout(resolve, 100))
     }
+    // « Force » : l'adresse enregistrée au départ (souvent « / ») ne doit pas primer sur l'assistant
     await clerk.value.handleRedirectCallback({
+      signInForceRedirectUrl: '/new/website',
+      signUpForceRedirectUrl: '/new/website',
       signInFallbackRedirectUrl: '/new/website',
       signUpFallbackRedirectUrl: '/new/website',
     })
