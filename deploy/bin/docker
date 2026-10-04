@@ -1,0 +1,3 @@
+#!/bin/sh
+# Podman rootless exposé sous le nom docker (le worker utilise la commande docker)
+exec /usr/bin/podman "$@"
