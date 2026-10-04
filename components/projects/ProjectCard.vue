@@ -27,7 +27,7 @@ const color = computed(() => STATUS_META[props.project.status].color)
     </header>
 
     <div class="body">
-      <ProjectPreview :status="project.status" />
+      <ProjectPreview :status="project.status" :thumbnail-url="project.thumbnailUrl" />
 
       <div class="summary">
         <p class="description">{{ project.description }}</p>

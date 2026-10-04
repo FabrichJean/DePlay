@@ -44,6 +44,10 @@ const BUILD_PIDS = process.env.BUILD_PIDS ?? '512'
 const SITE_DOMAIN = process.env.SITE_DOMAIN ?? 'fabrich.site'
 const SITES_DIR = resolve(process.env.DEPLOY_SITES_DIR ?? '/www/wwwroot/deplay-sites')
 
+// Captures d'écran des sites (une image par projet), lues par l'application
+const THUMBNAILS_DIR = resolve(process.env.THUMBNAILS_DIR ?? './storage/thumbnails')
+const THUMBNAIL_IMAGE = process.env.THUMBNAIL_IMAGE ?? 'mcr.microsoft.com/playwright:v1.49.0-jammy'
+
 const SANDBOX_UID = process.getuid && process.getuid() !== 0 ? process.getuid() : 10001
 const SANDBOX_GID = process.getgid && process.getgid() !== 0 ? process.getgid() : 10001
 
@@ -226,6 +230,45 @@ async function publishStatic(deploymentId, outDir, log, name) {
   return `https://${name}.${SITE_DOMAIN}`
 }
 
+// Capture d'écran du site publié. Un échec n'annule pas le déploiement : le site reste en ligne sans image.
+async function captureThumbnail(projectId, url, log) {
+  await mkdir(THUMBNAILS_DIR, { recursive: true })
+  const script = new URL('./capture-thumbnail.mjs', import.meta.url).pathname
+  const name = `deplay-thumb-${randomBytes(6).toString('hex')}`
+  const args =
+    ISOLATION === 'docker'
+      ? [
+          'run', '--rm', '--name', name,
+          '--user', `${SANDBOX_UID}:${SANDBOX_GID}`,
+          '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
+          '--memory', '1g', '--cpus', '1', '--pids-limit', '256', '--shm-size', '512m',
+          '--tmpfs', '/tmp:rw,exec,nosuid,size=512m',
+          '-e', 'HOME=/tmp',
+          '-v', `${THUMBNAILS_DIR}:/out`, '-v', `${script}:/work/capture-thumbnail.mjs:ro`,
+          '--entrypoint', 'node', THUMBNAIL_IMAGE, '/work/capture-thumbnail.mjs', url, `/out/${projectId}.jpg`,
+        ]
+      : null
+  try {
+    if (!args) throw new Error('thumbnails need BUILD_ISOLATION=docker')
+    await new Promise((done, fail) => {
+      const child = spawn('docker', args, { env: buildEnv() })
+      const timer = setTimeout(() => {
+        spawn('docker', ['kill', name], { stdio: 'ignore' })
+        child.kill('SIGKILL')
+      }, 120000)
+      child.on('error', fail)
+      child.on('close', (code) => {
+        clearTimeout(timer)
+        code === 0 ? done() : fail(new Error(`capture exited with ${code}`))
+      })
+    })
+    await prisma.project.update({ where: { id: projectId }, data: { thumbnailAt: new Date() } })
+    log.line('Captured a preview image', 'muted')
+  } catch (error) {
+    log.line(`Preview image not captured: ${error.message}`, 'muted')
+  }
+}
+
 // Taille totale d'un dossier, en octets
 async function dirSize(dir) {
   let total = 0
@@ -388,6 +431,7 @@ async function build(deployment) {
     const url = await publishStatic(deployment.id, outDir, log, project.name)
     log.line(`Live at ${url}`, 'success')
     await prisma.project.update({ where: { id: project.id }, data: { outputBytes } })
+    await captureThumbnail(project.id, url, log)
     await removePreviousBuilds(deployment.projectId, deployment.id, workDir, log)
 
     // 4. Terminé

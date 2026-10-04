@@ -17,6 +17,8 @@ export interface Project {
   description: string
   kind: ProjectKind
   status: ProjectStatus
+  /** Capture d'écran du site publié (vide si aucune) */
+  thumbnailUrl: string | null
   /** Origine du code : dépôt Git ou fichiers déposés */
   source: 'git' | 'upload'
   /** Branche du dernier déploiement (vide pour un upload) */

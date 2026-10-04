@@ -44,6 +44,8 @@ export function toProject(row: ProjectRow, activity?: ProjectActivity): Project 
     kind: row.kind as ProjectKind,
     status: row.status as ProjectStatus,
     source: row.source === 'upload' ? 'upload' : 'git',
+    // L'adresse change à chaque capture : le paramètre v force le navigateur à recharger l'image
+    thumbnailUrl: row.thumbnailAt ? `/api/projects/${row.id}/thumbnail?v=${row.thumbnailAt.getTime()}` : null,
     // Un upload n'a pas de branche ; un dépôt affiche la branche du dernier déploiement
     branch: row.source === 'upload' ? '' : activity?.lastBranch || row.branch,
     updatedAt: lastActivity.toISOString(),

@@ -4,14 +4,22 @@ import type { ProjectStatus } from '~/types/project'
 
 const props = defineProps<{
   status: ProjectStatus
+  /** Capture d'écran du site publié, si elle existe */
+  thumbnailUrl?: string | null
 }>()
 
 const color = computed(() => STATUS_META[props.status].color)
+// Une image seulement quand le site est en ligne : sinon l'aperçu schématique
+const image = computed(() => (props.status === 'live' ? props.thumbnailUrl : null))
 </script>
 
 <template>
-  <!-- Aperçu schématique : pas de capture réelle du site, rendu 100 % CSS -->
-  <div class="preview" :style="{ '--c': color }" aria-hidden="true">
+  <div v-if="image" class="preview is-image">
+    <img :src="image" alt="" loading="lazy" decoding="async" />
+  </div>
+
+  <!-- Aperçu schématique : affiché tant qu'il n'y a pas de capture du site -->
+  <div v-else class="preview" :style="{ '--c': color }" aria-hidden="true">
     <div class="frame">
       <span class="topbar" />
       <div class="content">
@@ -35,6 +43,19 @@ const color = computed(() => STATUS_META[props.status].color)
   background: linear-gradient(160deg, #111a24, #0a1016);
   padding: 8px;
   overflow: hidden;
+}
+
+.preview.is-image {
+  padding: 0;
+  background: #0a1016;
+}
+
+.preview.is-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
 }
 
 .frame {

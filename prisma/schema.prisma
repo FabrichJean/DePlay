@@ -36,6 +36,8 @@ model Project {
   sourceBytes     Int      @default(0)
   /// Octets du dernier site publié (dossier de sortie)
   outputBytes     Int      @default(0)
+  /// Date de la dernière capture d'écran du site publié (vide si aucune)
+  thumbnailAt     DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
