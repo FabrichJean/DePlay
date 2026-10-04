@@ -9,6 +9,28 @@ const props = defineProps<{
 
 const files = defineModel<File[]>('files', { default: () => [] })
 
+// Lie le compte GitHub à Clerk (y compris pour un compte connecté par email) avec le droit d'accès aux dépôts
+const { user } = useUser()
+const connecting = ref(false)
+const connectError = ref('')
+
+async function connectGithub() {
+  connectError.value = ''
+  connecting.value = true
+  try {
+    // Clerk redirige vers GitHub, puis revient sur /sso-callback
+    await user.value?.createExternalAccount({
+      strategy: 'oauth_github',
+      redirectUrl: `${window.location.origin}/sso-callback`,
+      additionalScopes: ['repo'],
+    })
+  } catch (cause) {
+    console.error('Connect GitHub failed:', cause)
+    connectError.value = (cause as Error).message || 'Could not connect GitHub.'
+    connecting.value = false
+  }
+}
+
 const query = ref('')
 const dragging = ref(false)
 const skipped = ref(0)
@@ -121,13 +143,24 @@ function clearFiles() {
         <input v-model="query" type="search" placeholder="Search repositories..." />
       </label>
 
-      <p v-if="github?.connected && !github?.privateAccess && !loadingRepositories" class="muted hint">
-        Private repositories are missing: reconnect GitHub and allow the repository (repo) permission.
-      </p>
+      <div v-if="github?.connected && !github?.privateAccess && !loadingRepositories" class="connect hint-block">
+        <p class="muted hint">
+          Private repositories are missing: reconnect GitHub and allow the repository (repo) permission.
+        </p>
+        <button type="button" class="btn" :disabled="connecting" @click="connectGithub">
+          <AppIcon name="github" :size="14" />
+          {{ connecting ? 'Redirecting to GitHub…' : 'Reconnect GitHub' }}
+        </button>
+      </div>
       <p v-if="loadingRepositories" class="muted empty">Loading your repositories…</p>
-      <p v-else-if="!github?.connected" class="muted empty">
-        No GitHub repository access. Sign in with GitHub and allow repository access to import code here.
-      </p>
+      <div v-else-if="!github?.connected" class="connect">
+        <p class="muted empty">Connect your GitHub account to import your repositories.</p>
+        <button type="button" class="btn btn-primary" :disabled="connecting" @click="connectGithub">
+          <AppIcon name="github" :size="14" />
+          {{ connecting ? 'Redirecting to GitHub…' : 'Connect GitHub' }}
+        </button>
+        <p v-if="connectError" class="banner">{{ connectError }}</p>
+      </div>
 
       <ul v-else class="repos" role="listbox" aria-label="Repositories">
         <li v-for="repo in visibleRepositories" :key="repo.fullName">
@@ -343,6 +376,27 @@ function clearFiles() {
   font-size: 12px;
   line-height: 1.5;
   margin-bottom: 8px;
+}
+
+.connect {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0 14px;
+}
+
+.hint-block {
+  align-items: flex-start;
+  padding-top: 0;
+}
+
+.banner {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(248, 113, 113, 0.1);
+  color: #f87171;
+  font-size: 13px;
 }
 
 .field {
