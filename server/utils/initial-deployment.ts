@@ -65,5 +65,16 @@ export function initialDeploymentData(project: ProjectRow, options: InitialDeplo
     }),
     server: JSON.stringify({ status: 'offline', ip: '—', provider: '—', location: '—', flag: '' }),
     metrics: '[]',
+    build: JSON.stringify({
+      source: options.source,
+      repository: project.repository,
+      branch: project.branch,
+      preset: project.preset,
+      rootDirectory: project.rootDirectory,
+      installCommand: project.installCommand,
+      buildCommand: project.buildCommand,
+      outputDirectory: project.outputDirectory,
+      fileCount: options.fileCount,
+    }),
   }
 }
