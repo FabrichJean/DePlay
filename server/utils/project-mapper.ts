@@ -4,7 +4,7 @@ import type { Project, ProjectKind, ProjectStatus } from '../../types/project'
 const DAY_MS = 24 * 60 * 60 * 1000
 
 // « 2h ago », « 3d ago » pour les dates récentes, sinon « Jan 27 »
-function relativeLabel(date: Date): string {
+export function relativeLabel(date: Date): string {
   const elapsed = Date.now() - date.getTime()
   if (elapsed < DAY_MS) return `${Math.max(1, Math.floor(elapsed / (60 * 60 * 1000)))}h ago`
   if (elapsed < 7 * DAY_MS) return `${Math.floor(elapsed / DAY_MS)}d ago`

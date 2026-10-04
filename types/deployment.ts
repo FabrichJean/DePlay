@@ -77,3 +77,16 @@ export interface Deployment {
   /** Configuration de build ; vide pour les déploiements créés avant ce champ */
   build: Partial<BuildInfo>
 }
+
+// Ligne de la liste des déploiements (page Deployments)
+export interface DeploymentSummary {
+  id: string
+  projectId: string | null
+  projectName: string
+  status: Deployment['status']
+  branch: string
+  url: string
+  duration: string
+  deployedLabel: string
+  createdLabel: string
+}
