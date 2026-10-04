@@ -16,6 +16,7 @@
   "dependencies": {
     "@clerk/nuxt": "^3.1.9",
     "@prisma/client": "^6.19.3",
+    "fflate": "^0.8.3",
     "nuxt": "^4.4.5",
     "prisma": "^6.19.3",
     "vue": "^3.5.13",
