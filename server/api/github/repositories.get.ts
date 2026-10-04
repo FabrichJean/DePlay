@@ -9,18 +9,31 @@ interface GithubRepo {
   updated_at: string
 }
 
+interface RepositoryList {
+  connected: boolean
+  /** Le jeton peut lire les dépôts privés (scope « repo ») */
+  privateAccess: boolean
+  repositories: RepositoryOption[]
+}
+
 // Dépôts GitHub du compte connecté, via le jeton OAuth conservé par Clerk
-export default defineEventHandler(async (event): Promise<{ connected: boolean, repositories: RepositoryOption[] }> => {
+export default defineEventHandler(async (event): Promise<RepositoryList> => {
   const { userId } = requireUser(event)
 
   const token = await githubToken(event, userId)
-  if (!token) return { connected: false, repositories: [] }
+  if (!token) return { connected: false, privateAccess: false, repositories: [] }
 
-  const repos = await githubGet<GithubRepo[]>(
+  const response = await githubFetch(
     token,
     '/user/repos?sort=updated&per_page=100&affiliation=owner,collaborator,organization_member',
   )
-  if (!repos) return { connected: false, repositories: [] }
+  if (!response) return { connected: false, privateAccess: false, repositories: [] }
+
+  // GitHub indique les permissions réelles du jeton : sans « repo », les dépôts privés n'apparaissent pas
+  const scopes = response.headers.get('x-oauth-scopes') ?? ''
+  const privateAccess = scopes.split(',').map((scope) => scope.trim()).includes('repo')
+
+  const repos = (await response.json()) as GithubRepo[]
 
   // Un appel par dépôt pour lire son package.json : on les fait en parallèle
   const repositories = await Promise.all(
@@ -33,11 +46,11 @@ export default defineEventHandler(async (event): Promise<{ connected: boolean, r
     })),
   )
 
-  return { connected: true, repositories }
+  return { connected: true, privateAccess, repositories }
 })
 
-// Appel à l'API GitHub. Renvoie null si le jeton n'est plus valide ou si la ressource n'existe pas
-async function githubGet<T>(token: string, path: string, accept = 'application/vnd.github+json'): Promise<T | null> {
+// Appel à l'API GitHub. Renvoie null si le jeton n'est plus valide
+async function githubFetch(token: string, path: string, accept = 'application/vnd.github+json'): Promise<Response | null> {
   const response = await fetch(`https://api.github.com${path}`, {
     headers: {
       Accept: accept,
@@ -46,28 +59,28 @@ async function githubGet<T>(token: string, path: string, accept = 'application/v
     },
   })
 
-  if (response.status === 401 || response.status === 404) return null
+  if (response.status === 401) return null
+  if (response.status === 404) return null
   if (!response.ok) {
     throw createError({ statusCode: 502, statusMessage: `GitHub returned ${response.status}` })
   }
-
-  return (accept.includes('raw') ? await response.text() : await response.json()) as T
+  return response
 }
 
 // Déduit le framework à partir du package.json à la racine de la branche par défaut
 async function detectPreset(token: string, fullName: string, branch: string): Promise<FrameworkPreset> {
-  const raw = await githubGet<string>(
+  const response = await githubFetch(
     token,
     `/repos/${fullName}/contents/package.json?ref=${encodeURIComponent(branch)}`,
     'application/vnd.github.raw',
   )
 
   // Pas de package.json : site HTML/CSS/JS pur
-  if (raw === null) return 'static'
+  if (!response) return 'static'
 
   let pkg: { dependencies?: Record<string, string>, devDependencies?: Record<string, string> }
   try {
-    pkg = JSON.parse(raw)
+    pkg = JSON.parse(await response.text())
   } catch {
     return 'static'
   }

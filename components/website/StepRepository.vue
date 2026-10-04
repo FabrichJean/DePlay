@@ -19,9 +19,9 @@ const SOURCES: { value: ProjectSource; label: string; description: string }[] = 
 ]
 
 // Dépôts réels du compte GitHub connecté à Clerk
-const { data: github, status: githubStatus } = useFetch<{ connected: boolean, repositories: RepositoryOption[] }>(
+const { data: github, status: githubStatus } = useFetch<{ connected: boolean, privateAccess: boolean, repositories: RepositoryOption[] }>(
   '/api/github/repositories',
-  { key: 'github-repositories', lazy: true, default: () => ({ connected: false, repositories: [] }) },
+  { key: 'github-repositories', lazy: true, default: () => ({ connected: false, privateAccess: false, repositories: [] }) },
 )
 
 const allRepositories = computed(() => github.value?.repositories ?? [])
@@ -121,6 +121,9 @@ function clearFiles() {
         <input v-model="query" type="search" placeholder="Search repositories..." />
       </label>
 
+      <p v-if="github?.connected && !github?.privateAccess && !loadingRepositories" class="muted hint">
+        Private repositories are missing: reconnect GitHub and allow the repository (repo) permission.
+      </p>
       <p v-if="loadingRepositories" class="muted empty">Loading your repositories…</p>
       <p v-else-if="!github?.connected" class="muted empty">
         No GitHub repository access. Sign in with GitHub and allow repository access to import code here.
@@ -334,6 +337,12 @@ function clearFiles() {
 .empty {
   padding: 12px 0;
   text-align: center;
+}
+
+.hint {
+  font-size: 12px;
+  line-height: 1.5;
+  margin-bottom: 8px;
 }
 
 .field {
