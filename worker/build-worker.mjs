@@ -561,7 +561,23 @@ async function startBuilds() {
   }
 }
 
+// Capture les projets déjà en ligne qui n'ont pas encore d'image, puis s'arrête (node worker/build-worker.mjs --thumbnails)
+async function backfillThumbnails() {
+  const projects = await prisma.project.findMany({
+    where: { status: 'live', thumbnailAt: null },
+    select: { id: true, name: true },
+  })
+  console.log(`Capturing ${projects.length} live site(s) without an image`)
+  const log = { line: (message) => console.log(`  ${message}`) }
+  for (const project of projects) {
+    console.log(`[${clock()}] ${project.name}`)
+    await captureThumbnail(project.id, `https://${project.name}.${SITE_DOMAIN}`, log)
+  }
+  await prisma.$disconnect()
+}
+
 async function main() {
+  if (process.argv.includes('--thumbnails')) return backfillThumbnails()
   await mkdir(BUILDS_DIR, { recursive: true })
   await mkdir(SITES_DIR, { recursive: true })
   console.log(`Build worker started. Storage: ${STORAGE_DIR} · Builds: ${BUILDS_DIR} · Sites: ${SITES_DIR}`)
