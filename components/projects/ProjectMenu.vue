@@ -12,6 +12,16 @@ const props = withDefaults(
 
 const route = useRoute()
 const root = ref<HTMLElement | null>(null)
+const trigger = ref<HTMLElement | null>(null)
+const menu = ref<HTMLElement | null>(null)
+// Position du menu à l'écran : il est rendu dans <body>, hors des blocs de la page
+const position = ref({ top: 0, right: 0 })
+
+function place() {
+  const rect = trigger.value?.getBoundingClientRect()
+  if (!rect) return
+  position.value = { top: rect.bottom + 6, right: window.innerWidth - rect.right }
+}
 const open = ref(false)
 const confirming = ref(false)
 const deleting = ref(false)
@@ -22,6 +32,7 @@ const siteUrl = computed(() => (props.project.url ? absoluteUrl(props.project.ur
 function toggle() {
   open.value = !open.value
   confirming.value = false
+  if (open.value) place()
 }
 
 function close() {
@@ -32,7 +43,9 @@ function close() {
 
 // Ferme le menu au clic extérieur ou à la touche Échap
 function onPointerDown(event: PointerEvent) {
-  if (root.value && !root.value.contains(event.target as Node)) close()
+  const target = event.target as Node
+  if (root.value?.contains(target) || menu.value?.contains(target)) return
+  close()
 }
 
 function onKeydown(event: KeyboardEvent) {
@@ -80,17 +93,22 @@ async function remove() {
 onMounted(() => {
   document.addEventListener('pointerdown', onPointerDown)
   document.addEventListener('keydown', onKeydown)
+  window.addEventListener('resize', place)
+  window.addEventListener('scroll', place, true)
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('pointerdown', onPointerDown)
   document.removeEventListener('keydown', onKeydown)
+  window.removeEventListener('resize', place)
+  window.removeEventListener('scroll', place, true)
 })
 </script>
 
 <template>
   <div ref="root" class="project-menu">
     <button
+      ref="trigger"
       type="button"
       class="icon-btn small"
       aria-label="More actions"
@@ -101,7 +119,14 @@ onBeforeUnmount(() => {
       <AppIcon name="more" :size="16" />
     </button>
 
-    <div v-if="open" class="menu" role="menu">
+    <Teleport to="body">
+    <div
+      v-if="open"
+      ref="menu"
+      class="project-menu-popup"
+      role="menu"
+      :style="{ top: `${position.top}px`, right: `${position.right}px` }"
+    >
       <template v-if="!confirming">
         <a
           v-if="siteUrl"
@@ -151,6 +176,7 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </div>
+    </Teleport>
   </div>
 </template>
 
@@ -167,11 +193,9 @@ onBeforeUnmount(() => {
   background: none;
 }
 
-.menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 40;
+.project-menu-popup {
+  position: fixed;
+  z-index: 1000;
   min-width: 200px;
   padding: 6px;
   display: flex;
