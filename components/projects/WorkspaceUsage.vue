@@ -51,7 +51,7 @@ const dashOffset = computed(() => CIRCUMFERENCE * (1 - props.usage.usedPercent /
             <span class="label">{{ item.label }}</span>
             <span class="value">{{ item.value }}</span>
           </div>
-          <div class="bar" role="progressbar" :aria-valuenow="item.percent" aria-valuemin="0" aria-valuemax="100">
+          <div v-if="item.percent !== null" class="bar" role="progressbar" :aria-valuenow="item.percent" aria-valuemin="0" aria-valuemax="100">
             <span class="bar-fill" :style="{ width: `${item.percent}%` }" />
           </div>
         </div>

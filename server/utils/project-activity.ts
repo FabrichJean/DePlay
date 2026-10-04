@@ -15,6 +15,8 @@ export interface ProjectActivity {
   visits: number
   /** Réponses 5xx sur les 14 derniers jours */
   errors: number
+  /** Octets envoyés sur les 14 derniers jours */
+  bytes: number
   /** Requêtes par jour, du plus ancien au plus récent */
   dailyRequests: number[]
   /** Visites par jour, du plus ancien au plus récent */
@@ -32,6 +34,7 @@ export async function projectActivity(projects: { id: string, name: string }[]):
       requests: 0,
       visits: 0,
       errors: 0,
+      bytes: 0,
       dailyRequests: new Array(SPARKLINE_DAYS).fill(0),
       dailyVisits: new Array(SPARKLINE_DAYS).fill(0),
     })
@@ -61,6 +64,7 @@ export async function projectActivity(projects: { id: string, name: string }[]):
     activity.requests = traffic[index].requests
     activity.visits = traffic[index].visits
     activity.errors = traffic[index].errors
+    activity.bytes = traffic[index].bytes
     activity.dailyRequests = traffic[index].daily
     activity.dailyVisits = traffic[index].dailyVisits
   })

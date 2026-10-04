@@ -34,7 +34,8 @@ export interface Project {
 export interface UsageItem {
   label: string
   value: string
-  percent: number
+  /** Part du quota utilisé ; null si l'élément n'a pas de limite (la barre n'est pas affichée) */
+  percent: number | null
   icon: IconName
 }
 

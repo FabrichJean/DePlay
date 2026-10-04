@@ -76,7 +76,7 @@ Toutes exigent une connexion Clerk (401 sinon) et vérifient la propriété du p
 
 Utilitaires serveur importants (`server/utils/`) : `require-user.ts`, `owner.ts` (`currentUserId`, `assertOwner`),
 `db.ts` (client Prisma), `project-mapper.ts`, `deployment-mapper.ts`, `initial-deployment.ts`,
-`project-storage.ts` (écriture des uploads, avec refus des chemins `..`), `mock-projects.ts` (usage factice).
+`project-storage.ts` (écriture des uploads, avec refus des chemins `..`), `workspace-usage.ts` (usage réel : stockage, trafic et visites des 14 derniers jours).
 
 Limite d'upload : **200 Mo** (constante dans la route et dans le formulaire).
 

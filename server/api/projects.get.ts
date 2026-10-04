@@ -10,6 +10,6 @@ export default defineEventHandler(async (event) => {
 
   return {
     projects: rows.map((row) => toProject(row, activity.get(row.id))),
-    usage: workspaceUsage,
+    usage: buildWorkspaceUsage(rows, activity, limits.storageQuotaBytes),
   }
 })
