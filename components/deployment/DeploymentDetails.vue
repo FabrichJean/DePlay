@@ -5,6 +5,8 @@ import type { Project } from '~/types/project'
 withDefaults(
   defineProps<{
     deployment: Deployment
+    /** Projet propriétaire : active le menu Visit / Redeploy / Delete dans l'en-tête */
+    project?: Project
     /** Mise en page centrée sur une colonne, sans la colonne latérale */
     compact?: boolean
   }>(),
