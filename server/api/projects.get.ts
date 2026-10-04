@@ -6,8 +6,10 @@ export default defineEventHandler(async (event) => {
     orderBy: { updatedAt: 'desc' },
   })
 
+  const activity = await projectActivity(rows.map((row) => row.id))
+
   return {
-    projects: rows.map(toProject),
+    projects: rows.map((row) => toProject(row, activity.get(row.id))),
     usage: workspaceUsage,
   }
 })

@@ -16,6 +16,9 @@ export interface Project {
   description: string
   kind: ProjectKind
   status: ProjectStatus
+  /** Origine du code : dépôt Git ou fichiers déposés */
+  source: 'git' | 'upload'
+  /** Branche du dernier déploiement (vide pour un upload) */
   branch: string
   /** Date ISO, utilisée pour le tri */
   updatedAt: string

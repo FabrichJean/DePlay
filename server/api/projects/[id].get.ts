@@ -9,5 +9,6 @@ export default defineEventHandler(async (event) => {
   }
   assertOwner(row, userId)
 
-  return toProject(row)
+  const activity = await projectActivity([row.id])
+  return toProject(row, activity.get(row.id))
 })

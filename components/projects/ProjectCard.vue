@@ -53,10 +53,16 @@ const color = computed(() => STATUS_META[props.project.status].color)
 
     <footer class="foot">
       <div class="meta">
-        <AppIcon name="github" :size="16" />
-        <span class="branch">
-          <AppIcon name="gitBranch" :size="13" />
-          {{ project.branch }}
+        <template v-if="project.source === 'git'">
+          <AppIcon name="github" :size="16" />
+          <span class="branch">
+            <AppIcon name="gitBranch" :size="13" />
+            {{ project.branch || '—' }}
+          </span>
+        </template>
+        <span v-else class="branch">
+          <AppIcon name="folder" :size="14" />
+          Uploaded files
         </span>
       </div>
 
