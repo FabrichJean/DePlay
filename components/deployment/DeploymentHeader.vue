@@ -189,9 +189,6 @@ a.chip:hover {
   margin-top: 6px;
 }
 
-  width: 116px;
-  pointer-events: none;
-}
 
 @media (max-width: 1180px) {
   .header {
@@ -215,8 +212,5 @@ a.chip:hover {
     margin-top: 0;
   }
 
-  .rocket {
-    display: none;
-  }
 }
 </style>
