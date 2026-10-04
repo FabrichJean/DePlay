@@ -53,7 +53,7 @@ const visible = computed(() =>
       <NuxtLink
         v-for="item in visible"
         :key="item.id"
-        :to="`/deployments/${item.id}`"
+        :to="item.projectId ? `/projects/${item.projectId}` : `/deployments/${item.id}`"
         class="row"
       >
         <div class="main">
