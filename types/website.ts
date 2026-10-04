@@ -17,6 +17,8 @@ export interface WebsiteProjectInput {
 
 export interface RepositoryOption {
   fullName: string
+  /** Dépôt privé : affiché avec un cadenas */
+  private: boolean
   defaultBranch: string
   detectedPreset: FrameworkPreset
   updatedLabel: string

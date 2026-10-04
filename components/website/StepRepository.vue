@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { REPOSITORIES } from '~/constants/repositories'
 import { PRESETS } from '~/constants/presets'
 import type { ProjectSource, RepositoryOption, WebsiteProjectInput } from '~/types/website'
 
@@ -19,9 +18,18 @@ const SOURCES: { value: ProjectSource; label: string; description: string }[] = 
   { value: 'upload', label: 'Upload files', description: 'Drop a folder or files, no Git needed' },
 ]
 
+// Dépôts réels du compte GitHub connecté à Clerk
+const { data: github, status: githubStatus } = useFetch<{ connected: boolean, repositories: RepositoryOption[] }>(
+  '/api/github/repositories',
+  { key: 'github-repositories', lazy: true, default: () => ({ connected: false, repositories: [] }) },
+)
+
+const allRepositories = computed(() => github.value?.repositories ?? [])
+const loadingRepositories = computed(() => githubStatus.value === 'pending')
+
 const visibleRepositories = computed(() => {
   const q = query.value.trim().toLowerCase()
-  return q ? REPOSITORIES.filter((repo) => repo.fullName.toLowerCase().includes(q)) : REPOSITORIES
+  return q ? allRepositories.value.filter((repo) => repo.fullName.toLowerCase().includes(q)) : allRepositories.value
 })
 
 const totalSize = computed(() => files.value.reduce((sum, file) => sum + file.size, 0))
@@ -113,7 +121,12 @@ function clearFiles() {
         <input v-model="query" type="search" placeholder="Search repositories..." />
       </label>
 
-      <ul class="repos" role="listbox" aria-label="Repositories">
+      <p v-if="loadingRepositories" class="muted empty">Loading your repositories…</p>
+      <p v-else-if="!github?.connected" class="muted empty">
+        No GitHub repository access. Sign in with GitHub and allow repository access to import code here.
+      </p>
+
+      <ul v-else class="repos" role="listbox" aria-label="Repositories">
         <li v-for="repo in visibleRepositories" :key="repo.fullName">
           <button
             type="button"
@@ -126,6 +139,7 @@ function clearFiles() {
             <span class="repo-main">
               <AppIcon name="github" :size="16" />
               <span class="repo-name">{{ repo.fullName }}</span>
+              <AppIcon v-if="repo.private" name="lock" :size="13" class="repo-lock" aria-label="Private repository" />
             </span>
             <span class="repo-meta">
               <span class="tag">{{ presetLabel(repo.detectedPreset) }}</span>
@@ -295,6 +309,11 @@ function clearFiles() {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.repo-lock {
+  flex-shrink: 0;
+  color: var(--muted);
 }
 
 .repo-meta {
