@@ -61,7 +61,8 @@ async function redeploy() {
   try {
     await $fetch(`/api/projects/${props.project.id}/redeploy`, { method: 'POST' })
     close()
-    await refreshNuxtData('projects')
+    // Recharge la liste et, si on est sur la page du projet, son déploiement (statut, logs)
+    await refreshNuxtData(['projects', `project:${props.project.id}`, `project-deployment:${props.project.id}`])
   } catch (error) {
     const body = (error as { data?: { statusMessage?: string } }).data
     redeployError.value = body?.statusMessage ?? 'Could not start the deployment.'

@@ -64,9 +64,16 @@ async function redeploy() {
   }
 }
 
-onMounted(() => {
-  if (deployment.value?.status === 'building') startPolling()
-})
+// Suit le statut du déploiement quel que soit le déclencheur (bouton de la page ou menu) :
+// tant qu'il est en cours, les données sont rechargées toutes les 3 secondes
+watch(
+  () => deployment.value?.status,
+  (status) => {
+    if (status === 'building') startPolling()
+    else stopPolling()
+  },
+  { immediate: true },
+)
 
 onBeforeUnmount(stopPolling)
 </script>
