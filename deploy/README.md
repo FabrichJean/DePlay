@@ -5,8 +5,9 @@ Ce dossier contient les fichiers à installer sur le VPS. Rien n'est copié auto
 ## Architecture
 
 - `https://deplay.fabrich.site` → nginx → application Nuxt sur `127.0.0.1:3100` (`deplay-app.service`).
-- `https://<projet>.fabrich.site` → nginx → dossier statique, ou serveur Nitro sur `127.0.0.1:8100-9999`.
-- Le worker (`deplay-worker.service`) construit les projets dans Docker, puis appelle `nginx-site.sh` via sudo.
+- `https://<projet>.fabrich.site` → nginx → dossier statique `/www/wwwroot/deplay-sites/<projet>` (un seul bloc nginx, `deploy/nginx/deplay-sites.conf`).
+- Le worker (`deplay-worker.service`) construit les projets dans Docker, puis copie le résultat statique dans ce dossier. Il n'appelle plus nginx ni sudo.
+- Seuls les sites statiques sont acceptés : Nuxt doit être généré (`nuxt generate`), Next exporté (`output: 'export'`).
 - Certificat : le wildcard de `fabrich.site` couvre `*.fabrich.site`, aucun certificat par projet.
 
 ## Installation (une fois)
@@ -21,7 +22,7 @@ Ce dossier contient les fichiers à installer sur le VPS. Rien n'est copié auto
    cd /opt/deplay && sudo -u deplay npm ci && sudo -u deplay npm run build
    sudo -u deplay npx prisma migrate deploy
    ```
-   Le fichier `config/reserved-names.txt` doit aussi être présent dans `/opt/deplay/config/` : il est lu à la fois par l'application et par `nginx-site.sh`.
+   Les fichiers `config/reserved-names.txt` et `config/limits.json` doivent être présents dans `/opt/deplay/config/` : ils sont lus par l'application et par le worker.
 3. **Secrets** : créer `/opt/deplay/.env` (clés Clerk de production, `DATABASE_URL`, `NUXT_PROJECTS_STORAGE_DIR=/opt/deplay/storage/projects`, clés CMS), puis
    ```bash
    sudo chown deplay:deplay /opt/deplay/.env && sudo chmod 600 /opt/deplay/.env
@@ -37,12 +38,24 @@ Ce dossier contient les fichiers à installer sur le VPS. Rien n'est copié auto
    sudo cp deploy/nginx/deplay-app.conf /www/server/panel/vhost/nginx/
    sudo /www/server/nginx/sbin/nginx -t && sudo /www/server/nginx/sbin/nginx -s reload
    ```
-6. **Droits du worker sur nginx** : copier `deploy/nginx-site.sh` dans `/opt/deplay/deploy/`, le rendre exécutable pour root uniquement, et ajouter la règle de `deploy/sudoers.example` dans `/etc/sudoers.d/deplay`.
-7. **Dossier des sites statiques** : créer `/www/wwwroot/deplay-sites` (propriétaire `deplay`, lisible par `www`).
+6. **Sites statiques** : créer le dossier servi par nginx, puis installer le bloc unique.
+   ```bash
+   sudo mkdir -p /www/wwwroot/deplay-sites && sudo chown deplay:deplay /www/wwwroot/deplay-sites
+   sudo cp deploy/nginx/deplay-sites.conf /www/server/panel/vhost/nginx/
+   sudo /www/server/nginx/sbin/nginx -t && sudo /www/server/nginx/sbin/nginx -s reload
+   ```
+   Le worker écrit dans ce dossier directement : aucune règle sudo n'est nécessaire pour publier.
+
+   **Migration depuis l'ancien modèle** (un fichier nginx par site) : supprimer les `deplay-<projet>.conf` des sites, en gardant `deplay-app.conf`, puis recharger nginx. Vérifier la liste avant de supprimer :
+   ```bash
+   ls /www/server/panel/vhost/nginx/deplay-*.conf
+   ```
+   Puis supprimer uniquement les fichiers des projets (jamais `deplay-app.conf`), recharger, et retirer `/etc/sudoers.d/deplay` si la règle `nginx-site.sh` y est encore.
 
 ## Points d'attention
 
-- **Lecture par nginx** : l'utilisateur `www` doit pouvoir lire les dossiers des sites statiques. Les builds du worker sont créés avec des droits `700` : il faut les publier dans `/www/wwwroot/deplay-sites/<nom>` en `755` (modification du worker à faire).
+- **Lecture par nginx** : l'utilisateur `www` doit pouvoir lire les dossiers des sites. Le worker donne `755` aux fichiers publiés.
+- **Quotas et limites** : `config/limits.json` (700 Mo par compte, 3 builds simultanés, 1 par compte). Chaque build tourne dans un conteneur de 1 CPU et 1 Go.
 - **Docker** : le groupe `docker` équivaut à des droits root. Préférer **Docker rootless** pour l'utilisateur `deplay`.
 - **Ports** : 3000 (todo), 3001 (webhook), 3334 (epta), 8091 (déploiement madascribe), 8888 (android-builder) sont déjà utilisés. Ne pas les attribuer aux projets.
 - **Clerk** : ajouter `https://deplay.fabrich.site` aux origines autorisées du tableau de bord Clerk.
