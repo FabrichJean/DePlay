@@ -23,6 +23,16 @@
   left: 62%;
   bottom: -26px;
   transform: translateX(-50%);
+  width: 160px;
+  opacity: 0.35;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.promo-title,
+.promo-text {
+  position: relative;
+  z-index: 1;
 }
 
 .promo-title {
