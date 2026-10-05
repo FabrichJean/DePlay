@@ -40,6 +40,8 @@ const BUILD_IMAGE = process.env.BUILD_IMAGE ?? 'docker.io/library/node:22-slim'
 // Runtimes autorisés pour les web services (même liste que l'API) : seule une image de cette liste est utilisée
 const RUNTIMES = JSON.parse(readFileSync(new URL('../config/runtimes.json', import.meta.url), 'utf8'))
 const imageOf = (project) => RUNTIMES[project?.runtime]?.image ?? BUILD_IMAGE
+// Variables propres au runtime (ex. PYTHONUSERBASE : les paquets Python restent dans le dossier du projet)
+const runtimeEnvOf = (project) => RUNTIMES[project?.runtime]?.env ?? {}
 const CLONE_IMAGE = process.env.CLONE_IMAGE ?? 'docker.io/alpine/git'
 // Ressources par build : 1 CPU et 1 Go, pour qu'on puisse en lancer plusieurs
 const BUILD_MEMORY = process.env.BUILD_MEMORY ?? '1g'
@@ -427,6 +429,7 @@ async function startService(project, appDir, port, log) {
 
   await docker(['rm', '-f', name])
   const env = {
+    ...runtimeEnvOf(project),
     ...projectEnvironment(project.envVars),
     PORT: String(port),
     HOST: '0.0.0.0',
@@ -632,7 +635,7 @@ async function build(deployment) {
     const installSandbox = { image: imageOf(project), workDir, cpus: INSTALL_CPUS, memory: BUILD_MEMORY, cacheDir }
     const buildSandbox = { image: imageOf(project), workDir, cpus: BUILD_CPUS, memory: BUILD_MEMORY, cacheDir }
     // Variables du projet : transmises aux commandes, jamais écrites dans les journaux
-    const projectEnv = projectEnvironment(project.envVars)
+    const projectEnv = { ...runtimeEnvOf(project), ...projectEnvironment(project.envVars) }
     if (ISOLATION === 'docker') {
       await chownTree(workDir)
       log.line(`Isolation: Docker (${BUILD_IMAGE}, ${BUILD_MEMORY} RAM, ${BUILD_CPUS} CPU for build, ${INSTALL_CPUS} for install)`, 'muted')
