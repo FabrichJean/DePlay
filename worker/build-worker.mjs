@@ -439,7 +439,8 @@ async function startService(project, appDir, port, log) {
       '--memory', WEB_MEMORY, '--memory-swap', WEB_MEMORY,
       '--cpus', WEB_CPUS, '--pids-limit', BUILD_PIDS,
       '-p', `127.0.0.1:${port}:${port}`,
-      '-v', `${appDir}:/app:ro`, '-w', '/app',
+      // Lecture-écriture sur le dossier de l'application seulement : les services écrivent souvent des fichiers (base, uploads)
+      '-v', `${appDir}:/app`, '-w', '/app',
       '-e', 'HOME=/tmp',
       ...Object.keys(env).flatMap((key) => ['-e', key]),
       '--entrypoint', 'sh', BUILD_IMAGE, '-c', project.startCommand,
@@ -449,14 +450,24 @@ async function startService(project, appDir, port, log) {
   if (result.code !== 0) throw new Error(`could not start the service: ${result.err.split('\n').slice(-2).join(' ')}`)
 
   log.line(`Starting service on port ${port}`)
+  // Les dernières lignes du service expliquent souvent pourquoi il n'est pas en marche
+  const explain = async () => {
+    const output = await docker(['logs', '--tail', '15', name])
+    return `${output.out}\n${output.err}`.trim().split('\n').slice(-4).join(' | ').slice(0, 400)
+  }
   try {
     await waitForPort(port)
   } catch {
-    // Les dernières lignes du service expliquent souvent pourquoi il n'écoute pas
-    const output = await docker(['logs', '--tail', '15', name])
-    const tail = `${output.out}\n${output.err}`.trim().split('\n').slice(-4).join(' | ').slice(0, 400)
+    const tail = await explain()
     await docker(['rm', '-f', name])
     throw new Error(`the service did not listen on port ${port}. Last output: ${tail}`)
+  }
+  // Le port peut répondre même si le conteneur s'est arrêté (le relais de Podman reste ouvert) : on vérifie le conteneur
+  await new Promise((done) => setTimeout(done, 1500))
+  if (!(await serviceRunning(project.id))) {
+    const tail = await explain()
+    await docker(['rm', '-f', name])
+    throw new Error(`the service stopped right after starting. Last output: ${tail}`)
   }
   log.line(`Web service running on port ${port}`, 'success')
   return `http://127.0.0.1:${port}`
