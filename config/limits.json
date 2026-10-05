@@ -3,6 +3,6 @@
   "maxConcurrentBuilds": 3,
   "maxBuildsPerUser": 1,
   "maxWebServicesPerUser": 2,
-  "webServiceMemory": "512m",
+  "webServiceMemory": "1g",
   "webServiceCpus": "1"
 }
