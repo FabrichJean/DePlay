@@ -32,7 +32,9 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_read_timeout 60s;
+        # Connexions WebSocket : elles restent ouvertes longtemps sans trafic
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
     }
 
     access_log /www/wwwlogs/sites/deplay-__NAME__.log combined;
