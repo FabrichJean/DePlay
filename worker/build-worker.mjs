@@ -37,6 +37,9 @@ const STORAGE_QUOTA_BYTES = LIMITS.storageQuotaBytes
 // Isolation des commandes du projet (clone, install, build)
 const ISOLATION = process.env.BUILD_ISOLATION ?? 'docker'
 const BUILD_IMAGE = process.env.BUILD_IMAGE ?? 'docker.io/library/node:22-slim'
+// Runtimes autorisés pour les web services (même liste que l'API) : seule une image de cette liste est utilisée
+const RUNTIMES = JSON.parse(readFileSync(new URL('../config/runtimes.json', import.meta.url), 'utf8'))
+const imageOf = (project) => RUNTIMES[project?.runtime]?.image ?? BUILD_IMAGE
 const CLONE_IMAGE = process.env.CLONE_IMAGE ?? 'docker.io/alpine/git'
 // Ressources par build : 1 CPU et 1 Go, pour qu'on puisse en lancer plusieurs
 const BUILD_MEMORY = process.env.BUILD_MEMORY ?? '1g'
@@ -443,7 +446,7 @@ async function startService(project, appDir, port, log) {
       '-v', `${appDir}:/app`, '-w', '/app',
       '-e', 'HOME=/tmp',
       ...Object.keys(env).flatMap((key) => ['-e', key]),
-      '--entrypoint', 'sh', BUILD_IMAGE, '-c', project.startCommand,
+      '--entrypoint', 'sh', imageOf(project), '-c', project.startCommand,
     ],
     env,
   )
@@ -625,8 +628,8 @@ async function build(deployment) {
     if (appDir !== workDir && !appDir.startsWith(workDir + sep)) throw new Error('root directory is outside the project')
 
     const cacheDir = ISOLATION === 'docker' ? await accountCacheDir(project.ownerId ?? `project-${project.id}`) : undefined
-    const installSandbox = { image: BUILD_IMAGE, workDir, cpus: INSTALL_CPUS, memory: BUILD_MEMORY, cacheDir }
-    const buildSandbox = { image: BUILD_IMAGE, workDir, cpus: BUILD_CPUS, memory: BUILD_MEMORY, cacheDir }
+    const installSandbox = { image: imageOf(project), workDir, cpus: INSTALL_CPUS, memory: BUILD_MEMORY, cacheDir }
+    const buildSandbox = { image: imageOf(project), workDir, cpus: BUILD_CPUS, memory: BUILD_MEMORY, cacheDir }
     // Variables du projet : transmises aux commandes, jamais écrites dans les journaux
     const projectEnv = projectEnvironment(project.envVars)
     if (ISOLATION === 'docker') {

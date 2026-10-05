@@ -2,6 +2,7 @@ import type { FrameworkPreset, WebsiteProjectInput } from '../../../types/websit
 import type { StoredFile } from '../../utils/project-storage'
 import { unzipSync } from 'fflate'
 import { envVariablesError, normalizeEnvVariables } from '../../../utils/env-variables'
+import { isRuntime } from '../../utils/runtimes'
 
 const PRESETS: FrameworkPreset[] = ['nuxt', 'next', 'vite', 'static']
 const NAME_PATTERN = /^[a-z0-9-]{3,40}$/
@@ -95,6 +96,7 @@ export default defineEventHandler(async (event) => {
   if (!body.preset || !PRESETS.includes(body.preset)) errors.preset = 'Choose a framework preset.'
   const isService = body.type === 'webservice'
   if (isService) {
+    if (!isRuntime(body.runtime ?? 'node')) errors.runtime = 'Choose a supported runtime.'
     if (!body.startCommand?.trim()) errors.startCommand = 'Enter the command that starts the service.'
     const services = await prisma.project.count({ where: { ownerId: userId, type: 'webservice' } })
     if (services >= limits.maxWebServicesPerUser) {
@@ -147,6 +149,7 @@ export default defineEventHandler(async (event) => {
         envVars: JSON.stringify(envVariables),
         type: isService ? 'webservice' : 'website',
         startCommand: isService ? body.startCommand!.trim() : '',
+        runtime: isService && isRuntime(body.runtime) ? body.runtime : 'node',
         status: 'building',
       },
     })

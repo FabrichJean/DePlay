@@ -14,6 +14,7 @@ useHead({ title: isService ? 'New web service · Deplay' : 'New website · Depla
 const form = reactive<WebsiteProjectInput>({
   name: '',
   type: isService ? 'webservice' : 'website',
+  runtime: 'node',
   startCommand: '',
   source: 'git',
   repository: '',

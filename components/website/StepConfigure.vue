@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { PRESETS } from '~/constants/presets'
+import runtimesConfig from '~/config/runtimes.json'
 import type { WebsiteProjectInput } from '~/types/website'
 
 defineProps<{
   form: WebsiteProjectInput
   errors: Partial<Record<keyof WebsiteProjectInput, string>>
 }>()
+
+const RUNTIMES = runtimesConfig as Record<string, { label: string, startPlaceholder: string }>
 </script>
 
 <template>
@@ -26,9 +29,24 @@ defineProps<{
       <div class="service-note">
         <p>A web service runs your code as a process on a port. Deplay gives it a port and a public address.</p>
       </div>
+      <fieldset class="presets">
+        <legend class="label">Runtime</legend>
+        <div class="preset-grid">
+          <label
+            v-for="(runtime, key) in RUNTIMES"
+            :key="key"
+            class="preset"
+            :class="{ 'is-selected': form.runtime === key }"
+          >
+            <input v-model="form.runtime" type="radio" name="runtime" :value="key" class="sr-only" />
+            <span class="preset-label">{{ runtime.label }}</span>
+            <span class="muted">{{ runtime.startPlaceholder }}</span>
+          </label>
+        </div>
+      </fieldset>
       <label class="field">
         <span class="label">Start command</span>
-        <input v-model="form.startCommand" type="text" placeholder="node server.js" />
+        <input v-model="form.startCommand" type="text" :placeholder="RUNTIMES[form.runtime]?.startPlaceholder" />
         <span v-if="errors.startCommand" class="error">{{ errors.startCommand }}</span>
         <span v-else class="hint">The command that starts your server. It must listen on the PORT environment variable.</span>
       </label>

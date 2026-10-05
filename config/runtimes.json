@@ -1,0 +1,4 @@
+{
+  "node": { "label": "Node.js", "image": "docker.io/library/node:22-slim", "installCommand": "npm install", "startCommand": "node server.js", "startPlaceholder": "node server.js" },
+  "python": { "label": "Python", "image": "docker.io/library/python:3.12-slim", "installCommand": "pip install -r requirements.txt", "startCommand": "python app.py", "startPlaceholder": "python app.py" }
+}

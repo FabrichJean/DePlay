@@ -12,6 +12,8 @@ export interface WebsiteProjectInput {
   source: ProjectSource
   /** Commande qui démarre le web service (vide pour un site) */
   startCommand: string
+  /** Runtime du web service (clé de config/runtimes.json) */
+  runtime: string
   /** Variables disponibles pendant l'installation et le build */
   env: { key: string, value: string }[]
   repository: string

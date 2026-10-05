@@ -44,6 +44,8 @@ model Project {
   type            String   @default("website")
   /// Port interne du web service (attribué par Deplay), vide pour un site
   port            Int?
+  /// Runtime du web service (clé de config/runtimes.json) : node, python…
+  runtime         String   @default("node")
   /// Commande qui démarre le web service, ex. « node server.js »
   startCommand    String   @default("")
   createdAt       DateTime @default(now())
