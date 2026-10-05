@@ -5,6 +5,7 @@ import type { Deployment } from '../../types/deployment'
 export function toDeployment(row: DeploymentRow): Deployment {
   return {
     id: row.id,
+    projectId: row.projectId,
     name: row.name,
     description: row.description,
     type: row.type,

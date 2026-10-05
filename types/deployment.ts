@@ -58,6 +58,8 @@ export interface BuildInfo {
 
 export interface Deployment {
   id: string
+  /** Projet propriétaire (vide si le projet a été supprimé) */
+  projectId: string | null
   name: string
   description: string
   type: string
