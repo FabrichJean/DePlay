@@ -45,3 +45,40 @@ export function envExampleNames(text: string): string[] {
   }
   return [...names]
 }
+
+// Lit un fichier .env (NOM=valeur, guillemets, export, commentaires) avec les valeurs
+export function parseDotenv(text: string): EnvVariable[] {
+  const result: EnvVariable[] = []
+  for (const raw of text.split(/\r?\n/)) {
+    let line = raw.trim()
+    if (!line || line.startsWith('#')) continue
+    if (line.startsWith('export ')) line = line.slice(7).trim()
+
+    const equal = line.indexOf('=')
+    if (equal <= 0) continue
+    const key = line.slice(0, equal).trim()
+    let value = line.slice(equal + 1).trim()
+
+    const quoted = value.length >= 2 && (value[0] === '"' || value[0] === "'") && value.endsWith(value[0])
+    if (quoted) {
+      value = value.slice(1, -1)
+      if (raw.includes('"')) value = value.replace(/\\n/g, '\n').replace(/\\"/g, '"')
+    } else {
+      // Commentaire en fin de ligne : « VALEUR # commentaire »
+      value = value.replace(/\s+#.*$/, '')
+    }
+    result.push({ key, value })
+  }
+  return result
+}
+
+// Ajoute ou remplace les variables importées, sans toucher aux autres ; la dernière valeur l'emporte
+export function mergeVariables(current: EnvVariable[], incoming: EnvVariable[]): EnvVariable[] {
+  const merged = current.map((item) => ({ ...item }))
+  for (const { key, value } of incoming) {
+    const existing = merged.find((item) => item.key === key)
+    if (existing) existing.value = value
+    else merged.push({ key, value })
+  }
+  return merged
+}
