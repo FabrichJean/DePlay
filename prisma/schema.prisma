@@ -38,6 +38,8 @@ model Project {
   outputBytes     Int      @default(0)
   /// Date de la dernière capture d'écran du site publié (vide si aucune)
   thumbnailAt     DateTime?
+  /// Variables d'environnement du build, en JSON : [{ key, value }]
+  envVars         String   @default("[]")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }

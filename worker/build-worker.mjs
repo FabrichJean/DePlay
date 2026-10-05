@@ -278,6 +278,17 @@ async function captureThumbnail(projectId, url, log) {
   }
 }
 
+// Variables du projet (JSON en base) : les noms système sont ignorés, même si l'API les a laissés passer
+const RESERVED_ENV = new Set(['PATH', 'HOME', 'LANG', 'CI', 'HOSTNAME', 'NODE_OPTIONS', 'LD_PRELOAD', 'LD_LIBRARY_PATH'])
+function projectEnvironment(json) {
+  const result = {}
+  for (const { key, value } of JSON.parse(json || '[]')) {
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key) || RESERVED_ENV.has(key) || key.startsWith('npm_config_') || key.startsWith('GIT_')) continue
+    result[key] = String(value)
+  }
+  return result
+}
+
 // Dossier de cache npm d'un compte, créé à la demande
 async function accountCacheDir(ownerKey) {
   const safe = ownerKey.replace(/[^A-Za-z0-9_-]/g, '_')
@@ -408,6 +419,8 @@ async function build(deployment) {
     const cacheDir = ISOLATION === 'docker' ? await accountCacheDir(project.ownerId ?? `project-${project.id}`) : undefined
     const installSandbox = { image: BUILD_IMAGE, workDir, cpus: INSTALL_CPUS, memory: BUILD_MEMORY, cacheDir }
     const buildSandbox = { image: BUILD_IMAGE, workDir, cpus: BUILD_CPUS, memory: BUILD_MEMORY, cacheDir }
+    // Variables du projet : transmises aux commandes, jamais écrites dans les journaux
+    const projectEnv = projectEnvironment(project.envVars)
     if (ISOLATION === 'docker') {
       await chownTree(workDir)
       log.line(`Isolation: Docker (${BUILD_IMAGE}, ${BUILD_MEMORY} RAM, ${BUILD_CPUS} CPU for build, ${INSTALL_CPUS} for install)`, 'muted')
@@ -424,17 +437,17 @@ async function build(deployment) {
     if (installCommand) {
       log.line(`$ ${installCommand}`)
       try {
-        await run('sh', ['-c', installCommand], { cwd: appDir, log, sandbox: installSandbox })
+        await run('sh', ['-c', installCommand], { cwd: appDir, log, sandbox: installSandbox, env: projectEnv })
       } catch (error) {
         // Un cache npm abîmé ne doit pas bloquer le build : nouvelle tentative sans cache
         if (!cacheDir) throw error
         log.line('Install failed with the account cache, retrying without it', 'muted')
-        await run('sh', ['-c', installCommand], { cwd: appDir, log, sandbox: { ...installSandbox, cacheDir: undefined } })
+        await run('sh', ['-c', installCommand], { cwd: appDir, log, sandbox: { ...installSandbox, cacheDir: undefined }, env: projectEnv })
       }
     }
     if (project.buildCommand) {
       log.line(`$ ${project.buildCommand}`)
-      await run('sh', ['-c', project.buildCommand], { cwd: appDir, log, sandbox: buildSandbox })
+      await run('sh', ['-c', project.buildCommand], { cwd: appDir, log, sandbox: buildSandbox, env: projectEnv })
     }
     await updateSteps(deployment.id, (steps) => setStep(setStep(steps, 'build', 'done', formatDuration(Date.now() - started)), 'test', 'done', '—'))
 

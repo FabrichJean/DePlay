@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { PRESETS } from '~/constants/presets'
 import type { CreatedProject, WebsiteProjectInput } from '~/types/website'
+import { envVariablesError } from '~/utils/env-variables'
 
 useHead({ title: 'New website · Deplay' })
 
@@ -17,6 +18,7 @@ const form = reactive<WebsiteProjectInput>({
   installCommand: PRESETS[0].installCommand,
   buildCommand: PRESETS[0].buildCommand,
   outputDirectory: PRESETS[0].outputDirectory,
+  env: [],
 })
 
 const current = ref(0)
@@ -59,6 +61,11 @@ const steps = computed(() => {
       key: 'configure',
       label: 'Configure',
       summary: `${form.name || '—'} · ${presetLabel}`,
+    },
+    {
+      key: 'environment',
+      label: 'Environment variables',
+      summary: form.env.length ? `${form.env.length} variable${form.env.length > 1 ? 's' : ''}` : 'None',
     },
     { key: 'review', label: 'Review & deploy' },
   ]
@@ -103,6 +110,11 @@ function validateStep(step: number): boolean {
     if (!NAME_PATTERN.test(form.name)) result.name = 'Use 3–40 lowercase letters, digits or dashes.'
     if (!form.rootDirectory.trim()) result.rootDirectory = 'Root directory is required.'
     if (!form.outputDirectory.trim()) result.outputDirectory = 'Output directory is required.'
+  }
+
+  if (step === 2) {
+    const envError = envVariablesError(form.env)
+    if (envError) result.env = envError
   }
 
   errors.value = result
@@ -217,6 +229,9 @@ async function submit() {
           </template>
           <template #step-configure>
             <StepConfigure :form="form" :errors="errors" />
+          </template>
+          <template #step-environment>
+            <StepEnvironment :form="form" :error="errors.env" />
           </template>
           <template #step-review>
             <StepReview :form="form" @edit="goTo" />

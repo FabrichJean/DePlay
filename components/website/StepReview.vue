@@ -28,6 +28,7 @@ const rows = computed<Row[]>(() => {
     { label: 'Root directory', value: props.form.rootDirectory, step: 1 },
     { label: 'Install command', value: props.form.installCommand || '—', step: 1 },
     { label: 'Build command', value: props.form.buildCommand || '—', step: 1 },
+    { label: 'Environment variables', value: props.form.env.length ? `${props.form.env.length} defined` : 'None', step: 2 },
     { label: 'Output directory', value: props.form.outputDirectory, step: 1 },
   ]
 })

@@ -1,6 +1,7 @@
 import type { FrameworkPreset, WebsiteProjectInput } from '../../../types/website'
 import type { StoredFile } from '../../utils/project-storage'
 import { unzipSync } from 'fflate'
+import { envVariablesError, normalizeEnvVariables } from '../../../utils/env-variables'
 
 const PRESETS: FrameworkPreset[] = ['nuxt', 'next', 'vite', 'static']
 const NAME_PATTERN = /^[a-z0-9-]{3,40}$/
@@ -92,6 +93,9 @@ export default defineEventHandler(async (event) => {
   if (!body.name || !NAME_PATTERN.test(body.name)) errors.name = 'Use 3–40 lowercase letters, digits or dashes.'
   else if (await isReservedName(body.name)) errors.name = 'This name is reserved. Choose another one.'
   if (!body.preset || !PRESETS.includes(body.preset)) errors.preset = 'Choose a framework preset.'
+  const envVariables = normalizeEnvVariables(body.env)
+  const envError = envVariablesError(envVariables)
+  if (envError) errors.env = envError
 
   if (isUpload) {
     if (fileCount === 0) errors.files = 'Add at least one file or folder.'
@@ -131,6 +135,7 @@ export default defineEventHandler(async (event) => {
         ownerId: userId,
         fileCount: isUpload ? fileCount : 0,
         sourceBytes: isUpload ? totalBytes : 0,
+        envVars: JSON.stringify(envVariables),
         status: 'building',
       },
     })

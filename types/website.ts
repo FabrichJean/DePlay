@@ -6,6 +6,8 @@ export type ProjectSource = 'git' | 'upload'
 export interface WebsiteProjectInput {
   name: string
   source: ProjectSource
+  /** Variables disponibles pendant l'installation et le build */
+  env: { key: string, value: string }[]
   repository: string
   branch: string
   preset: FrameworkPreset
