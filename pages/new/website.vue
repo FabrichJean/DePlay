@@ -231,7 +231,7 @@ async function submit() {
             <StepConfigure :form="form" :errors="errors" />
           </template>
           <template #step-environment>
-            <StepEnvironment :form="form" :error="errors.env" />
+            <StepEnvironment :form="form" :files="uploadedFiles" :error="errors.env" />
           </template>
           <template #step-review>
             <StepReview :form="form" @edit="goTo" />

@@ -33,3 +33,15 @@ export function normalizeEnvVariables(input: unknown): EnvVariable[] {
     value: String((item as EnvVariable)?.value ?? ''),
   }))
 }
+
+// Noms des variables déclarées dans un fichier .env.example (valeurs ignorées)
+export function envExampleNames(text: string): string[] {
+  const names = new Set<string>()
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim()
+    if (!line || line.startsWith('#')) continue
+    const match = /^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/.exec(line)
+    if (match && !RESERVED_KEYS.has(match[1])) names.add(match[1])
+  }
+  return [...names]
+}
