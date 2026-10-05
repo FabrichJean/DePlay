@@ -13,7 +13,7 @@
     "startCommand": "python -m uvicorn main:app --host 0.0.0.0 --port $PORT",
     "startPlaceholder": "python -m uvicorn main:app --host 0.0.0.0 --port $PORT",
     "env": {
-      "PYTHONUSERBASE": "/app/.pylocal",
+      "PYTHONUSERBASE": "/work/.pylocal",
       "PYTHONDONTWRITEBYTECODE": "1"
     }
   }

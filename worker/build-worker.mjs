@@ -14,7 +14,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { createServer as createNetServer, connect } from 'node:net'
 import { chown, cp, mkdir, mkdtemp, readdir, realpath, rename, rm, stat } from 'node:fs/promises'
-import { join, resolve, sep } from 'node:path'
+import { join, relative, resolve, sep } from 'node:path'
 
 const STORAGE_DIR = process.env.NUXT_PROJECTS_STORAGE_DIR
 if (!STORAGE_DIR) {
@@ -427,6 +427,8 @@ async function startService(project, appDir, port, log) {
   const name = serviceName(project.id)
   if (!project.startCommand) throw new Error('the web service needs a start command')
 
+  const root = buildRootOf(appDir) || appDir
+  const serviceCwd = join('/work', relative(root, appDir)).replace(/\/$/, '') || '/work'
   await docker(['rm', '-f', name])
   const env = {
     ...runtimeEnvOf(project),
@@ -447,7 +449,8 @@ async function startService(project, appDir, port, log) {
       '--cpus', WEB_CPUS, '--pids-limit', BUILD_PIDS,
       '-p', `127.0.0.1:${port}:${port}`,
       // Lecture-écriture sur le dossier de l'application seulement : les services écrivent souvent des fichiers (base, uploads)
-      '-v', `${appDir}:/app`, '-w', '/app',
+      // Même point de montage que les builds (/work) : la racine du build contient aussi les paquets Python
+      '-v', `${root}:/work`, '-w', serviceCwd,
       '-e', 'HOME=/tmp',
       ...Object.keys(env).flatMap((key) => ['-e', key]),
       '--entrypoint', 'sh', imageOf(project), '-c', project.startCommand,
