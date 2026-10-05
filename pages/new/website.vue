@@ -3,13 +3,13 @@ import { PRESETS } from '~/constants/presets'
 import type { CreatedProject, WebsiteProjectInput } from '~/types/website'
 import { envVariablesError } from '~/utils/env-variables'
 
-useHead({ title: isService ? 'New web service · Deplay' : 'New website · Deplay' })
-
 const NAME_PATTERN = /^[a-z0-9-]{3,40}$/
 const MAX_UPLOAD_BYTES = 200 * 1024 * 1024
 
 const route = useRoute()
 const isService = route.query.type === 'webservice'
+
+useHead({ title: isService ? 'New web service · Deplay' : 'New website · Deplay' })
 
 const form = reactive<WebsiteProjectInput>({
   name: '',
