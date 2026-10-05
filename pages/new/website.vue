@@ -21,7 +21,7 @@ const form = reactive<WebsiteProjectInput>({
   preset: 'nuxt',
   rootDirectory: './',
   installCommand: PRESETS[0].installCommand,
-  buildCommand: PRESETS[0].buildCommand,
+  buildCommand: isService ? '' : PRESETS[0].buildCommand,
   outputDirectory: PRESETS[0].outputDirectory,
   env: [],
 })
@@ -115,7 +115,7 @@ function validateStep(step: number): boolean {
     if (!NAME_PATTERN.test(form.name)) result.name = 'Use 3–40 lowercase letters, digits or dashes.'
     if (form.type === 'webservice' && !form.startCommand.trim()) result.startCommand = 'Enter the command that starts the service.'
     if (!form.rootDirectory.trim()) result.rootDirectory = 'Root directory is required.'
-    if (!form.outputDirectory.trim()) result.outputDirectory = 'Output directory is required.'
+    if (form.type === 'website' && !form.outputDirectory.trim()) result.outputDirectory = 'Output directory is required.'
   }
 
   if (step === 2) {

@@ -22,7 +22,19 @@ defineProps<{
       <span v-else class="hint">Lowercase letters, digits and dashes, 3 to 40 characters.</span>
     </label>
 
-    <fieldset class="presets">
+    <template v-if="form.type === 'webservice'">
+      <div class="service-note">
+        <p>A web service runs your code as a process on a port. Deplay gives it a port and a public address.</p>
+      </div>
+      <label class="field">
+        <span class="label">Start command</span>
+        <input v-model="form.startCommand" type="text" placeholder="node server.js" />
+        <span v-if="errors.startCommand" class="error">{{ errors.startCommand }}</span>
+        <span v-else class="hint">The command that starts your server. It must listen on the PORT environment variable.</span>
+      </label>
+    </template>
+
+    <fieldset v-if="form.type === 'website'" class="presets">
       <legend class="label">Framework preset</legend>
       <div class="preset-grid">
         <label
@@ -51,19 +63,12 @@ defineProps<{
 
       <label class="field">
         <span class="label">Build command</span>
-        <input v-model="form.buildCommand" type="text" placeholder="npm run build" />
+        <input v-model="form.buildCommand" type="text" :placeholder="form.type === 'webservice' ? 'Leave empty if none' : 'npm run build'" />
       </label>
 
-      <label class="field">
+      <label v-if="form.type === 'website'" class="field">
         <span class="label">Output directory</span>
         <input v-model="form.outputDirectory" type="text" />
-      </label>
-
-      <label v-if="form.type === 'webservice'" class="field">
-        <span class="label">Start command</span>
-        <input v-model="form.startCommand" type="text" placeholder="node server.js" />
-        <span v-if="errors.startCommand" class="error">{{ errors.startCommand }}</span>
-        <span v-else class="hint">Runs from the project root. The service must listen on the PORT environment variable.</span>
       </label>
     </div>
   </div>
@@ -121,6 +126,12 @@ defineProps<{
 
 .field input:focus {
   border-color: var(--primary-border);
+}
+
+.service-note p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .presets {
