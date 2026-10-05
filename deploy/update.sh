@@ -5,8 +5,13 @@
 #   --no-dep   ne réinstalle pas les dépendances (à utiliser si package.json et package-lock.json n'ont pas changé)
 #   --help     affiche cette aide
 #
-# Ne touche jamais aux données : .env, storage/, prisma/dev.db et node_modules/.output sont ignorés par Git.
-# Étapes : récupération du code, dépendances, build (Node 22), migrations, redémarrage app (pm2) et worker (systemd).
+# Règles :
+#   - le dépôt du VPS doit être propre : aucune modification faite à la main (sinon le script s'arrête)
+#   - ne touche jamais aux données : .env, storage/, prisma/dev.db et les sauvegardes restent hors Git
+#   - deploy/ et config/ appartiennent à root (lus en root par les scripts) ; le reste appartient à deplay
+#   - build, migrations et client Prisma sont faits en tant que deplay, pour éviter les dossiers créés par root
+#
+# Étapes : vérification, code, droits, dépendances, client Prisma, build, migrations, redémarrage app (pm2) et worker.
 set -eu
 
 NO_DEP=0
@@ -14,7 +19,7 @@ for arg in "$@"; do
   case "$arg" in
     --no-dep) NO_DEP=1 ;;
     --help|-h)
-      sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'
+      sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'
       exit 0
       ;;
     *) echo "option inconnue : $arg (voir --help)" >&2; exit 2 ;;
@@ -23,8 +28,20 @@ done
 
 APP=/opt/deplay
 export PATH=/opt/deplay/bin:/opt/node22/bin:/usr/local/bin:/usr/bin:/bin
+RUN_AS_DEPLAY="su -s /bin/sh deplay -c"
 
 cd "$APP"
+
+# Le dépôt appartient à deplay après les droits : git lancé en root doit l'accepter
+git config --global --get-all safe.directory 2>/dev/null | grep -qx "$APP" || git config --global --add safe.directory "$APP"
+
+echo "==> vérification du dépôt"
+if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+  echo "Le dépôt du VPS contient des modifications non commitées :" >&2
+  git status --short --untracked-files=no >&2
+  echo "Arrêt : commitez ou retirez ces modifications avant de mettre à jour." >&2
+  exit 1
+fi
 
 echo "==> code"
 git fetch --quiet origin main
@@ -32,24 +49,30 @@ git fetch --quiet origin main
 git merge --ff-only origin/main
 echo "version : $(git log -1 --oneline)"
 
+echo "==> droits"
+chown -R deplay:deplay "$APP"
+chown -R root:root "$APP/deploy" "$APP/config"
+chmod 755 "$APP/deploy/service-route.sh" "$APP/deploy/update.sh"
+
 if [ "$NO_DEP" -eq 1 ]; then
   echo "==> dépendances : ignorées (--no-dep)"
 else
   echo "==> dépendances"
-  npm ci --no-audit --no-fund
+  $RUN_AS_DEPLAY "cd $APP && . ./.env && PATH=/opt/node22/bin:\$PATH npm ci --no-audit --no-fund"
 fi
 
-echo "==> build"
-set -a
-. "$APP/.env"
-set +a
-npx nuxi build
+echo "==> client Prisma"
+$RUN_AS_DEPLAY "cd $APP && . ./.env && PATH=/opt/node22/bin:\$PATH npx prisma generate"
 
-echo "==> migrations (en tant que deplay)"
-su -s /bin/sh deplay -c "cd $APP && PATH=/opt/node22/bin:\$PATH node_modules/.bin/prisma migrate deploy"
+echo "==> build"
+$RUN_AS_DEPLAY "cd $APP && . ./.env && PATH=/opt/node22/bin:\$PATH npx nuxi build"
+
+echo "==> migrations"
+$RUN_AS_DEPLAY "cd $APP && . ./.env && PATH=/opt/node22/bin:\$PATH npx prisma migrate deploy"
 
 echo "==> redémarrage"
-pm2 restart deplay-app
+# reload avec le fichier de configuration : relit .env (pm2 restart ne le relit pas)
+pm2 reload deploy/ecosystem.config.cjs --only deplay-app --update-env >/dev/null
 systemctl restart deplay-worker
 
 sleep 5

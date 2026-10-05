@@ -9,3 +9,8 @@ storage/
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+# sauvegardes de base et dépendances de l'outil de capture (versions figées dans package.json)
+prisma/*.bak*
+worker/capture/node_modules/
+worker/capture/package-lock.json
