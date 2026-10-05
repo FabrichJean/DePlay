@@ -40,6 +40,12 @@ model Project {
   thumbnailAt     DateTime?
   /// Variables d'environnement du build, en JSON : [{ key, value }]
   envVars         String   @default("[]")
+  /// Type de projet : « website » (site statique) ou « webservice » (processus sur un port)
+  type            String   @default("website")
+  /// Port interne du web service (attribué par Deplay), vide pour un site
+  port            Int?
+  /// Commande qui démarre le web service, ex. « node server.js »
+  startCommand    String   @default("")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }

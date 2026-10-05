@@ -93,6 +93,15 @@ export default defineEventHandler(async (event) => {
   if (!body.name || !NAME_PATTERN.test(body.name)) errors.name = 'Use 3–40 lowercase letters, digits or dashes.'
   else if (await isReservedName(body.name)) errors.name = 'This name is reserved. Choose another one.'
   if (!body.preset || !PRESETS.includes(body.preset)) errors.preset = 'Choose a framework preset.'
+  const isService = body.type === 'webservice'
+  if (isService) {
+    if (!body.startCommand?.trim()) errors.startCommand = 'Enter the command that starts the service.'
+    const services = await prisma.project.count({ where: { ownerId: userId, type: 'webservice' } })
+    if (services >= limits.maxWebServicesPerUser) {
+      const message = `This account already has ${services} web service${services > 1 ? 's' : ''} (limit ${limits.maxWebServicesPerUser}).`
+      throw createError({ statusCode: 409, statusMessage: message, data: { errors: { type: message } } })
+    }
+  }
   const envVariables = normalizeEnvVariables(body.env)
   const envError = envVariablesError(envVariables)
   if (envError) errors.env = envError
@@ -136,6 +145,8 @@ export default defineEventHandler(async (event) => {
         fileCount: isUpload ? fileCount : 0,
         sourceBytes: isUpload ? totalBytes : 0,
         envVars: JSON.stringify(envVariables),
+        type: isService ? 'webservice' : 'website',
+        startCommand: isService ? body.startCommand!.trim() : '',
         status: 'building',
       },
     })

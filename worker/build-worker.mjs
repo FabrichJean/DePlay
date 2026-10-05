@@ -10,6 +10,7 @@ import { PrismaClient } from '@prisma/client'
 import { spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { readFileSync } from 'node:fs'
+import { createServer as createNetServer, connect } from 'node:net'
 import { chown, cp, mkdir, mkdtemp, readdir, realpath, rename, rm, stat } from 'node:fs/promises'
 import { join, resolve, sep } from 'node:path'
 
@@ -43,6 +44,14 @@ const INSTALL_CPUS = process.env.INSTALL_CPUS ?? '2'
 // Cache npm par compte (jamais partagé entre comptes)
 const BUILD_CACHE_DIR = resolve(process.env.BUILD_CACHE_DIR ?? './storage/cache')
 const BUILD_PIDS = process.env.BUILD_PIDS ?? '512'
+// Web services : un conteneur par service, sur un port de cette plage (127.0.0.1 uniquement)
+const WEB_MEMORY = LIMITS.webServiceMemory
+const WEB_CPUS = LIMITS.webServiceCpus
+const SERVICE_PREFIX = 'deplay-svc-'
+const SERVICE_PORTS = { min: 8100, max: 9999 }
+// Routage public : script root appelé via sudo (voir deploy/service-route.sh et deploy/sudoers.example)
+const SERVICE_ROUTE_SCRIPT = process.env.SERVICE_ROUTE_SCRIPT ?? '/opt/deplay/deploy/service-route.sh'
+const NGINX_VHOST_DIR = process.env.NGINX_VHOST_DIR ?? '/www/server/panel/vhost/nginx'
 
 // Sites statiques : dossier servi par nginx (un seul bloc *.fabrich.site, voir deploy/nginx/deplay-sites.conf)
 const SITE_DOMAIN = process.env.SITE_DOMAIN ?? 'fabrich.site'
@@ -299,14 +308,190 @@ async function accountCacheDir(ownerKey) {
 }
 
 // Taille totale d'un dossier, en octets
-async function dirSize(dir) {
+async function dirSize(dir, exclude = []) {
   let total = 0
   for (const entry of await readdir(dir, { withFileTypes: true })) {
+    if (exclude.includes(entry.name)) continue
     const path = join(dir, entry.name)
-    if (entry.isDirectory()) total += await dirSize(path)
+    if (entry.isDirectory()) total += await dirSize(path, exclude)
     else if (entry.isFile()) total += (await stat(path)).size
   }
   return total
+}
+
+// Services : réseau et conteneurs
+function portIsFree(port) {
+  return new Promise((done) => {
+    const probe = createNetServer()
+    probe.once('error', () => done(false))
+    probe.listen(port, '127.0.0.1', () => probe.close(() => done(true)))
+  })
+}
+
+function waitForPort(port, timeoutMs = 20000) {
+  const started = Date.now()
+  return new Promise((done, fail) => {
+    const attempt = () => {
+      const socket = connect(port, '127.0.0.1')
+      socket.once('connect', () => {
+        socket.end()
+        done()
+      })
+      socket.once('error', () => {
+        socket.destroy()
+        if (Date.now() - started > timeoutMs) fail(new Error(`port ${port} did not open in time`))
+        else setTimeout(attempt, 300)
+      })
+    }
+    attempt()
+  })
+}
+
+// Appel à docker/podman : code de retour et sorties
+function docker(args, env = {}) {
+  return new Promise((done) => {
+    const child = spawn('docker', args, { env: { ...buildEnv(), ...env } })
+    let out = ''
+    let err = ''
+    child.stdout.on('data', (chunk) => (out += chunk))
+    child.stderr.on('data', (chunk) => (err += chunk))
+    child.on('error', (error) => done({ code: -1, out, err: error.message }))
+    child.on('close', (code) => done({ code, out: out.trim(), err: err.trim() }))
+  })
+}
+
+const serviceName = (projectId) => `${SERVICE_PREFIX}${projectId}`
+
+// Expose le service sur https://<nom>.<domaine> ; un échec ne bloque pas le service (il reste joignable en local)
+function routeService(name, port, log) {
+  return new Promise((done) => {
+    const child = spawn('sudo', ['-n', SERVICE_ROUTE_SCRIPT, 'set', name, String(port)], { env: buildEnv() })
+    let err = ''
+    child.stderr.on('data', (chunk) => (err += chunk))
+    child.on('error', () => done(false))
+    child.on('close', (code) => {
+      if (code === 0) log.line(`Public route: https://${name}.${SITE_DOMAIN}`, 'success')
+      else log.line(`Public route not created: ${err.trim().slice(0, 200)}`, 'muted')
+      done(code === 0)
+    })
+  })
+}
+
+function unrouteService(name) {
+  return new Promise((done) => {
+    const child = spawn('sudo', ['-n', SERVICE_ROUTE_SCRIPT, 'remove', name], { env: buildEnv() })
+    child.on('error', () => done(false))
+    child.on('close', (code) => done(code === 0))
+  })
+}
+
+// Port du service : garde le précédent s'il est libre, sinon en choisit un autre dans la plage
+async function allocateServicePort(projectId, preferred) {
+  const taken = new Set(
+    (await prisma.project.findMany({
+      where: { type: 'webservice', port: { not: null }, id: { not: projectId } },
+      select: { port: true },
+    })).map((row) => row.port),
+  )
+  if (preferred && !taken.has(preferred) && (await portIsFree(preferred))) return preferred
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const port = SERVICE_PORTS.min + Math.floor(Math.random() * (SERVICE_PORTS.max - SERVICE_PORTS.min + 1))
+    if (!taken.has(port) && (await portIsFree(port))) return port
+  }
+  throw new Error('no free port for the web service')
+}
+
+// Lance le service dans un conteneur jetable, avec ses variables, son port et sa commande de démarrage
+async function startService(project, appDir, port, log) {
+  const name = serviceName(project.id)
+  if (!project.startCommand) throw new Error('the web service needs a start command')
+
+  await docker(['rm', '-f', name])
+  const env = {
+    ...projectEnvironment(project.envVars),
+    PORT: String(port),
+    HOST: '0.0.0.0',
+    NODE_ENV: 'production',
+    CI: '1',
+  }
+  const result = await docker(
+    [
+      'run', '-d', '--name', name,
+      '--user', `${SANDBOX_UID}:${SANDBOX_GID}`,
+      '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
+      '--read-only', '--tmpfs', '/tmp:rw,exec,nosuid,size=256m',
+      '--memory', WEB_MEMORY, '--memory-swap', WEB_MEMORY,
+      '--cpus', WEB_CPUS, '--pids-limit', BUILD_PIDS,
+      '-p', `127.0.0.1:${port}:${port}`,
+      '-v', `${appDir}:/app:ro`, '-w', '/app',
+      '-e', 'HOME=/tmp',
+      ...Object.keys(env).flatMap((key) => ['-e', key]),
+      '--entrypoint', 'sh', BUILD_IMAGE, '-c', project.startCommand,
+    ],
+    env,
+  )
+  if (result.code !== 0) throw new Error(`could not start the service: ${result.err.split('\n').slice(-2).join(' ')}`)
+
+  log.line(`Starting service on port ${port}`)
+  try {
+    await waitForPort(port)
+  } catch {
+    // Les dernières lignes du service expliquent souvent pourquoi il n'écoute pas
+    const output = await docker(['logs', '--tail', '15', name])
+    const tail = `${output.out}\n${output.err}`.trim().split('\n').slice(-4).join(' | ').slice(0, 400)
+    await docker(['rm', '-f', name])
+    throw new Error(`the service did not listen on port ${port}. Last output: ${tail}`)
+  }
+  log.line(`Web service running on port ${port}`, 'success')
+  return `http://127.0.0.1:${port}`
+}
+
+async function serviceRunning(projectId) {
+  const result = await docker(['inspect', '-f', '{{.State.Running}}', serviceName(projectId)])
+  return result.code === 0 && result.out === 'true'
+}
+
+// Relance les services qui se sont arrêtés (crash, redémarrage de la machine)
+async function keepServicesRunning() {
+  const projects = await prisma.project.findMany({
+    where: { type: 'webservice', status: 'live', port: { not: null } },
+  })
+  for (const project of projects) {
+    if (await serviceRunning(project.id)) continue
+    const current = await prisma.deployment.findFirst({
+      where: { projectId: project.id, status: 'deployed' },
+      orderBy: { createdAt: 'desc' },
+    })
+    if (!current?.buildDir) continue
+    const note = { line: (message) => console.log(`[${clock()}] ${project.name}: ${message}`) }
+    try {
+      await startService(project, current.buildDir, project.port, note)
+      await routeService(project.name, project.port, note)
+    } catch (error) {
+      console.warn(`[${clock()}] could not restart ${project.name}: ${error.message}`)
+    }
+  }
+}
+
+// Supprime les conteneurs de services dont le projet n'existe plus
+async function cleanupOrphanServices() {
+  // Routes nginx de services dont le projet a été supprimé
+  const files = await readdir(NGINX_VHOST_DIR).catch(() => [])
+  for (const file of files) {
+    const match = /^deplay-svc-([a-z0-9-]{3,40})\.conf$/.exec(file)
+    if (!match) continue
+    if (await prisma.project.findUnique({ where: { name: match[1] }, select: { id: true } })) continue
+    await unrouteService(match[1])
+    console.log(`[${clock()}] Removed route of deleted service ${match[1]}`)
+  }
+
+  const listing = await docker(['ps', '-a', '--format', '{{.Names}}', '--filter', `name=${SERVICE_PREFIX}`])
+  for (const name of listing.out.split('\n').filter(Boolean)) {
+    const projectId = name.slice(SERVICE_PREFIX.length)
+    if (await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } })) continue
+    await docker(['rm', '-f', name])
+    console.log(`[${clock()}] Removed service of deleted project ${projectId}`)
+  }
 }
 
 // Espace utilisé par le compte, hors ce projet : sources uploadées + sites publiés
@@ -453,6 +638,32 @@ async function build(deployment) {
 
     // 3. Publier
     await updateSteps(deployment.id, (steps) => setStep(steps, 'deploy', 'running'))
+
+    // Web service : le code reste dans son dossier et tourne dans un conteneur sur un port dédié
+    if (project.type === 'webservice') {
+      const serviceBytes = await dirSize(appDir, ['node_modules', '.git'])
+      const usedByOthers = await storageUsedByOthers(project.ownerId, project.id)
+      if (usedByOthers + project.sourceBytes + serviceBytes > STORAGE_QUOTA_BYTES) {
+        throw new Error('storage limit reached for this account')
+      }
+      const port = await allocateServicePort(project.id, project.port)
+      const localUrl = await startService(project, appDir, port, log)
+      // L'URL enregistrée est l'adresse publique quand la route est en place, sinon l'adresse locale
+      const routed = await routeService(project.name, port, log)
+      const url = routed ? `https://${project.name}.${SITE_DOMAIN}` : localUrl
+      await removePreviousBuilds(deployment.projectId, deployment.id, workDir, log)
+      const duration = formatDuration(Date.now() - started)
+      await updateSteps(deployment.id, (steps) => setStep(setStep(steps, 'deploy', 'done', duration), 'live', 'done', duration))
+      await prisma.deployment.update({
+        where: { id: deployment.id },
+        data: { status: 'deployed', url, buildDir: appDir, duration, deployedAt: deployedLabel() },
+      })
+      await prisma.project.update({
+        where: { id: project.id },
+        data: { status: 'live', url, port, outputBytes: serviceBytes },
+      })
+      return
+    }
     const outDir = resolve(appDir, project.outputDirectory || '.')
     if (outDir !== workDir && !outDir.startsWith(workDir + sep)) throw new Error('output directory is outside the project')
     if (!(await stat(outDir).catch(() => null))?.isDirectory()) {
@@ -532,7 +743,11 @@ async function restoreDeployments() {
       const isDirectory = dir ? (await stat(dir).catch(() => null))?.isDirectory() : false
       if (!isDirectory) throw new Error('build output is gone')
 
-      const url = await publishStatic(row.id, dir, log, row.name)
+      const project = row.projectId ? await prisma.project.findUnique({ where: { id: row.projectId } }) : null
+      const url =
+        project?.type === 'webservice'
+          ? await startService(project, dir, project.port, log).then(async (serviceUrl) => (await routeService(project.name, project.port, log), serviceUrl))
+          : await publishStatic(row.id, dir, log, row.name)
       log.line(`Restored after worker restart at ${url}`, 'success')
 
       await prisma.deployment.update({ where: { id: row.id }, data: { url, buildDir: dir } })
@@ -637,9 +852,15 @@ async function main() {
   })
   await restoreDeployments()
 
+  let lastWatchdog = 0
   for (;;) {
     await reconcileRunning()
     await cleanupOrphanSites().catch((error) => console.warn(`[${clock()}] site cleanup failed: ${error.message}`))
+    await cleanupOrphanServices().catch((error) => console.warn(`[${clock()}] service cleanup failed: ${error.message}`))
+    if (Date.now() - lastWatchdog > 30000) {
+      lastWatchdog = Date.now()
+      await keepServicesRunning().catch((error) => console.warn(`[${clock()}] watchdog failed: ${error.message}`))
+    }
     await startBuilds().catch((error) => console.error(`[${clock()}] queue error: ${error.message}`))
     await sleep(POLL_MS)
   }

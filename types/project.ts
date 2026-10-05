@@ -19,6 +19,8 @@ export interface Project {
   status: ProjectStatus
   /** Capture d'écran du site publié (vide si aucune) */
   thumbnailUrl: string | null
+  /** Site statique ou web service (processus sur un port) */
+  type: 'website' | 'webservice'
   /** Origine du code : dépôt Git ou fichiers déposés */
   source: 'git' | 'upload'
   /** Branche du dernier déploiement (vide pour un upload) */

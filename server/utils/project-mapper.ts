@@ -43,6 +43,7 @@ export function toProject(row: ProjectRow, activity?: ProjectActivity): Project 
     description: row.description,
     kind: row.kind as ProjectKind,
     status: row.status as ProjectStatus,
+    type: row.type === 'webservice' ? 'webservice' : 'website',
     source: row.source === 'upload' ? 'upload' : 'git',
     // L'adresse change à chaque capture : le paramètre v force le navigateur à recharger l'image
     thumbnailUrl: row.thumbnailAt ? `/api/projects/${row.id}/thumbnail?v=${row.thumbnailAt.getTime()}` : null,

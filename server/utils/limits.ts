@@ -8,6 +8,11 @@ interface Limits {
   maxConcurrentBuilds: number
   /** Builds en même temps pour un même compte */
   maxBuildsPerUser: number
+  /** Web services par compte (partagent le quota de stockage avec les sites) */
+  maxWebServicesPerUser: number
+  /** Ressources de chaque web service (conteneur) */
+  webServiceMemory: string
+  webServiceCpus: string
 }
 
 // config/limits.json : lu par l'application et par le worker, source unique

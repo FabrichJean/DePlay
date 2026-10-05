@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "Project" ADD COLUMN "type" TEXT NOT NULL DEFAULT 'website';
+ALTER TABLE "Project" ADD COLUMN "port" INTEGER;
+ALTER TABLE "Project" ADD COLUMN "startCommand" TEXT NOT NULL DEFAULT '';

@@ -1,4 +1,7 @@
-# Le worker n'a plus besoin de sudo : il écrit les sites dans /www/wwwroot/deplay-sites (propriétaire deplay)
-# et nginx sert ce dossier via le bloc unique deploy/nginx/deplay-sites.conf.
-# Ne rien ajouter ici. Si /etc/sudoers.d/deplay contient encore une règle nginx-site.sh, la retirer :
-#   sudo visudo -f /etc/sudoers.d/deplay
+# Droits sudo minimaux pour le worker : une seule commande par fonction, sans mot de passe.
+# À placer dans /etc/sudoers.d/deplay (éditer avec : sudo visudo -f /etc/sudoers.d/deplay)
+#
+#   deplay ALL=(root) NOPASSWD: /opt/deplay/deploy/service-route.sh
+#
+# Les scripts valident eux-mêmes les noms, ports et chemins. Ne jamais donner
+# de droits plus larges (pas de ALL, pas de shell, pas de nginx directement).

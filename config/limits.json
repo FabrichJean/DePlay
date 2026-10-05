@@ -1,5 +1,8 @@
 {
   "storageQuotaBytes": 734003200,
   "maxConcurrentBuilds": 3,
-  "maxBuildsPerUser": 1
+  "maxBuildsPerUser": 1,
+  "maxWebServicesPerUser": 2,
+  "webServiceMemory": "512m",
+  "webServiceCpus": "1"
 }

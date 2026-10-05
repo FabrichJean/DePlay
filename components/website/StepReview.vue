@@ -24,6 +24,7 @@ const rows = computed<Row[]>(() => {
       : { label: 'Repository', value: props.form.repository, step: 0 },
     ...(props.form.source === 'upload' ? [] : [{ label: 'Branch', value: props.form.branch, step: 0 }]),
     { label: 'Project name', value: props.form.name, step: 1 },
+    ...(props.form.type === 'webservice' ? [{ label: 'Start command', value: props.form.startCommand || '—', step: 1 }] : []),
     { label: 'Framework', value: preset?.label ?? props.form.preset, step: 1 },
     { label: 'Root directory', value: props.form.rootDirectory, step: 1 },
     { label: 'Install command', value: props.form.installCommand || '—', step: 1 },

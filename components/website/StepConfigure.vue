@@ -58,6 +58,13 @@ defineProps<{
         <span class="label">Output directory</span>
         <input v-model="form.outputDirectory" type="text" />
       </label>
+
+      <label v-if="form.type === 'webservice'" class="field">
+        <span class="label">Start command</span>
+        <input v-model="form.startCommand" type="text" placeholder="node server.js" />
+        <span v-if="errors.startCommand" class="error">{{ errors.startCommand }}</span>
+        <span v-else class="hint">Runs from the project root. The service must listen on the PORT environment variable.</span>
+      </label>
     </div>
   </div>
 </template>

@@ -10,7 +10,7 @@ interface MenuItem {
 
 const items: MenuItem[] = [
   { label: 'Website', description: 'Deploy a static or server-rendered site from Git.', icon: 'globe', to: '/new/website' },
-  { label: 'Web Service', description: 'Run a long-lived API or background process.', icon: 'server' },
+  { label: 'Web Service', description: 'Run a long-lived API or background process.', icon: 'server', to: '/new/website?type=webservice' },
   { label: 'File Storage', description: 'Store and serve files for your applications.', icon: 'box' },
 ]
 

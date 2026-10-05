@@ -57,7 +57,11 @@ const color = computed(() => STATUS_META[props.project.status].color)
 
     <footer class="foot">
       <div class="meta">
-        <template v-if="project.source === 'git'">
+        <span v-if="project.type === 'webservice'" class="branch">
+          <AppIcon name="server" :size="14" />
+          Web service
+        </span>
+        <template v-else-if="project.source === 'git'">
           <AppIcon name="github" :size="16" />
           <span class="branch">
             <AppIcon name="gitBranch" :size="13" />

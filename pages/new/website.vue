@@ -3,13 +3,18 @@ import { PRESETS } from '~/constants/presets'
 import type { CreatedProject, WebsiteProjectInput } from '~/types/website'
 import { envVariablesError } from '~/utils/env-variables'
 
-useHead({ title: 'New website · Deplay' })
+useHead({ title: isService ? 'New web service · Deplay' : 'New website · Deplay' })
 
 const NAME_PATTERN = /^[a-z0-9-]{3,40}$/
 const MAX_UPLOAD_BYTES = 200 * 1024 * 1024
 
+const route = useRoute()
+const isService = route.query.type === 'webservice'
+
 const form = reactive<WebsiteProjectInput>({
   name: '',
+  type: isService ? 'webservice' : 'website',
+  startCommand: '',
   source: 'git',
   repository: '',
   branch: 'main',
@@ -108,6 +113,7 @@ function validateStep(step: number): boolean {
 
   if (step === 1) {
     if (!NAME_PATTERN.test(form.name)) result.name = 'Use 3–40 lowercase letters, digits or dashes.'
+    if (form.type === 'webservice' && !form.startCommand.trim()) result.startCommand = 'Enter the command that starts the service.'
     if (!form.rootDirectory.trim()) result.rootDirectory = 'Root directory is required.'
     if (!form.outputDirectory.trim()) result.outputDirectory = 'Output directory is required.'
   }
