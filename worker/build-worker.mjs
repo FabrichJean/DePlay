@@ -435,7 +435,8 @@ async function startService(project, appDir, port, log) {
   }
   const result = await docker(
     [
-      'run', '-d', '--name', name,
+      // Journaux lisibles par « logs » : le pilote journald (défaut sur ce VPS) ne les renvoie pas
+      'run', '-d', '--name', name, '--log-driver', 'k8s-file',
       '--user', `${SANDBOX_UID}:${SANDBOX_GID}`,
       '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
       '--read-only', '--tmpfs', '/tmp:rw,exec,nosuid,size=256m',
