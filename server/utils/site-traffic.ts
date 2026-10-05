@@ -2,7 +2,7 @@ import { open, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 
 // Journaux d'accès nginx des sites publiés : /www/wwwlogs/deplay-<nom>.log (format « combined »)
-const LOG_DIR = process.env.SITE_LOG_DIR || '/www/wwwlogs'
+const LOG_DIR = process.env.SITE_LOG_DIR || '/www/wwwlogs/sites'
 const DAY_MS = 24 * 60 * 60 * 1000
 const WINDOW_DAYS = 14
 // Premier passage : on ne lit pas plus que ça d'un coup (un journal peut être très gros)
