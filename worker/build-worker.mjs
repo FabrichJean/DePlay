@@ -10,6 +10,8 @@ import { PrismaClient } from '@prisma/client'
 import { spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { readFileSync } from 'node:fs'
+import { readFile, writeFile } from 'node:fs/promises'
+import { dirname } from 'node:path'
 import { createServer as createNetServer, connect } from 'node:net'
 import { chown, cp, mkdir, mkdtemp, readdir, realpath, rename, rm, stat } from 'node:fs/promises'
 import { join, resolve, sep } from 'node:path'
@@ -51,7 +53,8 @@ const SERVICE_PREFIX = 'deplay-svc-'
 const SERVICE_PORTS = { min: 8100, max: 9999 }
 // Routage public : script root appelé via sudo (voir deploy/service-route.sh et deploy/sudoers.example)
 const SERVICE_ROUTE_SCRIPT = process.env.SERVICE_ROUTE_SCRIPT ?? '/opt/deplay/deploy/service-route.sh'
-const NGINX_VHOST_DIR = process.env.NGINX_VHOST_DIR ?? '/www/server/panel/vhost/nginx'
+// Liste des routes créées par le worker (le dossier nginx n'est pas lisible par ce compte)
+const ROUTES_FILE = resolve(process.env.SERVICE_ROUTES_FILE ?? './storage/service-routes.json')
 
 // Sites statiques : dossier servi par nginx (un seul bloc *.fabrich.site, voir deploy/nginx/deplay-sites.conf)
 const SITE_DOMAIN = process.env.SITE_DOMAIN ?? 'fabrich.site'
@@ -362,9 +365,18 @@ function docker(args, env = {}) {
 
 const serviceName = (projectId) => `${SERVICE_PREFIX}${projectId}`
 
+async function readRoutes() {
+  return JSON.parse(await readFile(ROUTES_FILE, 'utf8').catch(() => '[]'))
+}
+
+async function writeRoutes(names) {
+  await mkdir(dirname(ROUTES_FILE), { recursive: true })
+  await writeFile(ROUTES_FILE, JSON.stringify([...new Set(names)]))
+}
+
 // Expose le service sur https://<nom>.<domaine> ; un échec ne bloque pas le service (il reste joignable en local)
-function routeService(name, port, log) {
-  return new Promise((done) => {
+async function routeService(name, port, log) {
+  const ok = await new Promise((done) => {
     const child = spawn('sudo', ['-n', SERVICE_ROUTE_SCRIPT, 'set', name, String(port)], { env: buildEnv() })
     let err = ''
     child.stderr.on('data', (chunk) => (err += chunk))
@@ -375,14 +387,18 @@ function routeService(name, port, log) {
       done(code === 0)
     })
   })
+  if (ok) await writeRoutes([...(await readRoutes()), name])
+  return ok
 }
 
-function unrouteService(name) {
-  return new Promise((done) => {
+async function unrouteService(name) {
+  const ok = await new Promise((done) => {
     const child = spawn('sudo', ['-n', SERVICE_ROUTE_SCRIPT, 'remove', name], { env: buildEnv() })
     child.on('error', () => done(false))
     child.on('close', (code) => done(code === 0))
   })
+  if (ok) await writeRoutes((await readRoutes()).filter((item) => item !== name))
+  return ok
 }
 
 // Port du service : garde le précédent s'il est libre, sinon en choisit un autre dans la plage
@@ -475,14 +491,10 @@ async function keepServicesRunning() {
 
 // Supprime les conteneurs de services dont le projet n'existe plus
 async function cleanupOrphanServices() {
-  // Routes nginx de services dont le projet a été supprimé
-  const files = await readdir(NGINX_VHOST_DIR).catch(() => [])
-  for (const file of files) {
-    const match = /^deplay-svc-([a-z0-9-]{3,40})\.conf$/.exec(file)
-    if (!match) continue
-    if (await prisma.project.findUnique({ where: { name: match[1] }, select: { id: true } })) continue
-    await unrouteService(match[1])
-    console.log(`[${clock()}] Removed route of deleted service ${match[1]}`)
+  // Routes nginx de services dont le projet a été supprimé (liste tenue par le worker)
+  for (const name of await readRoutes()) {
+    if (await prisma.project.findUnique({ where: { name }, select: { id: true } })) continue
+    if (await unrouteService(name)) console.log(`[${clock()}] Removed route of deleted service ${name}`)
   }
 
   const listing = await docker(['ps', '-a', '--format', '{{.Names}}', '--filter', `name=${SERVICE_PREFIX}`])
