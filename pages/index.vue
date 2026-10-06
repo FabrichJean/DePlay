@@ -291,7 +291,7 @@ function deploymentTone(status: string): { label: string, color: string } {
       <section class="card">
         <header class="card-head">
           <h2><AppIcon name="layers" :size="16" /> Projects by status</h2>
-          <NuxtLink to="/projects" class="link">Open projects</NuxtLink>
+          <NuxtLink to="/websites" class="link">Open websites</NuxtLink>
         </header>
         <ul class="statuses">
           <li v-for="row in STATUS_ROWS" :key="row.key">

@@ -78,6 +78,11 @@ function formatDate(value: string | null): string {
         Your web services, refreshed every 15 seconds.
         <template v-if="data">{{ data.services.length }} / {{ data.limits.maxServices }} used · {{ data.limits.memory }} memory, {{ data.limits.cpus }} CPU each.</template>
       </p>
+      <NuxtLink
+        v-if="!data || data.services.length < data.limits.maxServices"
+        to="/new/website?type=webservice"
+        class="btn btn-primary"
+      >New web service</NuxtLink>
     </header>
 
     <p v-if="error" class="banner">{{ error }}</p>

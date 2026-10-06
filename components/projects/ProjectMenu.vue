@@ -79,7 +79,7 @@ async function remove() {
     close()
     // Depuis la page du projet supprimé, on revient à la liste
     if (route.path.startsWith('/projects/')) {
-      await navigateTo('/projects')
+      await navigateTo('/websites')
       return
     }
     // Recharge la liste des projets pour retirer la carte

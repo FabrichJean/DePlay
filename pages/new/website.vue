@@ -212,7 +212,7 @@ async function submit() {
 
 <template>
   <div class="page">
-    <NuxtLink to="/projects" class="back-link">
+    <NuxtLink to="/websites" class="back-link">
       <AppIcon name="arrowLeft" :size="16" />
       Back to projects
     </NuxtLink>
@@ -221,7 +221,7 @@ async function submit() {
       <span class="success-icon"><AppIcon name="check" :size="22" /></span>
       <h2>Project “{{ created.name }}” created</h2>
       <p class="muted">The first build will start shortly.</p>
-      <NuxtLink to="/projects" class="btn btn-primary">Go to projects</NuxtLink>
+      <NuxtLink to="/websites" class="btn btn-primary">Go to websites</NuxtLink>
     </section>
 
     <template v-else>
@@ -260,7 +260,7 @@ async function submit() {
       <p v-if="submitError" class="banner">{{ submitError }}</p>
 
       <footer class="actions">
-        <NuxtLink v-if="current === 0" to="/projects" class="btn">Cancel</NuxtLink>
+        <NuxtLink v-if="current === 0" to="/websites" class="btn">Cancel</NuxtLink>
         <button v-else type="button" class="btn" @click="back">Back</button>
 
         <button
