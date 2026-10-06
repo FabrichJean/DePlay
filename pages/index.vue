@@ -122,6 +122,8 @@ const chart = computed(() => {
   return { line, area, ticks, points, peak, plotHeight }
 })
 
+const trafficPaths = computed(() => sparklinePaths(traffic.value, 100, 40))
+
 const storagePercent = computed(() => usage.value?.usedPercent ?? 0)
 const storageLabel = computed(() => usage.value?.items[0]?.value ?? '—')
 
@@ -178,6 +180,10 @@ function deploymentTone(status: string): { label: string, color: string } {
         </div>
         <p class="kpi-value">{{ trafficTotal }}</p>
         <p class="kpi-note">Across all your sites</p>
+        <svg class="kpi-spark" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true">
+          <path :d="trafficPaths.area" class="spark-area" />
+          <path :d="trafficPaths.line" class="spark-line" vector-effect="non-scaling-stroke" />
+        </svg>
       </article>
 
       <article class="kpi">
@@ -377,6 +383,7 @@ h2 svg {
   gap: 14px;
 }
 
+/* Cartes translucides : le fond bleu transparaît, le flou garde le texte lisible */
 .kpi {
   display: flex;
   flex-direction: column;
@@ -384,7 +391,8 @@ h2 svg {
   padding: 18px 20px;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
-  background: var(--card);
+  background: rgba(17, 26, 34, 0.35);
+  backdrop-filter: blur(8px);
 }
 
 .kpi-head {
@@ -393,14 +401,43 @@ h2 svg {
   gap: 10px;
 }
 
+.kpi {
+  position: relative;
+  overflow: hidden;
+}
+
 .kpi-icon {
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  background: var(--primary-soft);
-  color: var(--primary);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--primary-strong);
+  color: #fff;
+}
+
+/* Courbe discrète en bas de la carte, sans prendre de place */
+.kpi-spark {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 46px;
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+.spark-line {
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.spark-area {
+  fill: color-mix(in srgb, var(--primary) 16%, transparent);
 }
 
 .kpi-label {
@@ -438,7 +475,8 @@ h2 svg {
   padding: 18px 20px;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
-  background: var(--card);
+  background: rgba(17, 26, 34, 0.35);
+  backdrop-filter: blur(8px);
 }
 
 .card-head {

@@ -6,7 +6,7 @@ const { isLoaded, isSignedIn } = useAuth()
 const { data } = await useProjects()
 
 useHead({
-  title: () => (isSignedIn.value ? 'Projects · Deplay' : 'Deplay'),
+  title: () => (isSignedIn.value ? 'Websites · Deplay' : 'Deplay'),
 })
 
 type Filter = 'all' | ProjectStatus
@@ -24,7 +24,8 @@ const filter = ref<Filter>('all')
 const sort = ref<SortKey>('last-updated')
 const view = ref<'grid' | 'list'>('grid')
 
-const projects = computed(() => data.value?.projects ?? [])
+// Seuls les sites statiques : les web services ont leur propre page
+const projects = computed(() => (data.value?.projects ?? []).filter((project) => project.type === 'website'))
 const usage = computed(() => data.value?.usage)
 
 // Compteurs par statut, calculés en une seule passe
@@ -57,17 +58,17 @@ const visibleProjects = computed(() => {
   <div v-if="isSignedIn" class="page">
     <header class="page-head">
       <div>
-        <h1>Projects</h1>
-        <p class="subtitle">Manage and monitor your applications across all workspaces.</p>
+        <h1>Websites</h1>
+        <p class="subtitle">Static sites published from your repositories or uploaded files.</p>
       </div>
 
-      <NewProjectMenu />
+      <NuxtLink to="/new/website" class="btn btn-primary">New website</NuxtLink>
     </header>
 
     <div class="toolbar">
       <label class="search">
         <AppIcon name="search" :size="18" />
-        <input v-model="query" type="search" placeholder="Search projects..." />
+        <input v-model="query" type="search" placeholder="Search websites..." />
       </label>
 
       <div class="filters" role="group" aria-label="Filter by status">
@@ -92,7 +93,7 @@ const visibleProjects = computed(() => {
 
       <div class="toolbar-end">
         <label class="select">
-          <select v-model="sort" aria-label="Sort projects">
+          <select v-model="sort" aria-label="Sort websites">
             <option value="last-updated">Last updated</option>
             <option value="name">Name</option>
           </select>
@@ -145,7 +146,7 @@ const visibleProjects = computed(() => {
         </ul>
 
         <p v-if="!visibleProjects.length" class="empty">
-          No projects match your filters.
+          No websites match your filters.
         </p>
       </section>
     </div>
