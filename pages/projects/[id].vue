@@ -92,7 +92,7 @@ onBeforeUnmount(stopPolling)
         <AppIcon name="refresh" :size="14" />
         {{ redeploying ? 'Starting…' : 'Deploy' }}
       </button>
-      <NuxtLink to="/" class="btn">Back to projects</NuxtLink>
+      <NuxtLink to="/projects" class="btn">Back to projects</NuxtLink>
     </div>
   </section>
 </template>
