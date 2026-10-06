@@ -26,7 +26,6 @@ const view = ref<'grid' | 'list'>('grid')
 
 // Seuls les sites statiques : les web services ont leur propre page
 const projects = computed(() => (data.value?.projects ?? []).filter((project) => project.type === 'website'))
-const usage = computed(() => data.value?.usage)
 
 // Compteurs par statut, calculés en une seule passe
 const counts = computed(() => {
@@ -124,9 +123,7 @@ const visibleProjects = computed(() => {
     </div>
 
     <div class="layout">
-      <aside v-if="usage" class="side">
-        <WorkspaceUsage :usage="usage" />
-
+      <aside class="side">
         <section class="status-card">
           <span class="status-dot" />
           <div class="status-text">
