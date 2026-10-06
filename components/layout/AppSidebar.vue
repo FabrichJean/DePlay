@@ -11,7 +11,7 @@ const navigation: NavItem[] = [
   { label: 'Dashboard', icon: 'grid', to: '/' },
   { label: 'Websites', icon: 'globe', to: '/websites' },
   { label: 'Deployments', icon: 'box', to: '/deployments' },
-  { label: 'Services', icon: 'layers', to: '/services' },
+  { label: 'Web services', icon: 'layers', to: '/webservices' },
   { label: 'Logs', icon: 'file', to: '/logs' },
   { label: 'Server', icon: 'server', to: '/server' },
   { label: 'Settings', icon: 'settings', to: '/settings' },
