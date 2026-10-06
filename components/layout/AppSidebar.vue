@@ -10,6 +10,9 @@ interface NavItem {
 const navigation: NavItem[] = [
   { label: 'Projects', icon: 'folder', to: '/' },
   { label: 'Deployments', icon: 'box', to: '/deployments' },
+  { label: 'Services', icon: 'layers', to: '/services' },
+  { label: 'Logs', icon: 'file', to: '/logs' },
+  { label: 'Server', icon: 'server', to: '/server' },
   { label: 'Settings', icon: 'settings', to: '/settings' },
 ]
 
