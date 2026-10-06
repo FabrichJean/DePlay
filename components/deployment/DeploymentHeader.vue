@@ -14,7 +14,7 @@ defineProps<{
 
 <template>
   <header class="header">
-    <NuxtLink to="/" class="back-link">
+    <NuxtLink to="/projects" class="back-link">
       <AppIcon name="arrowLeft" :size="16" />
       Back to projects
     </NuxtLink>
