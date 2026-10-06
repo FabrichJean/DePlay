@@ -8,10 +8,11 @@ interface NavItem {
 }
 
 const navigation: NavItem[] = [
-  { label: 'Dashboard', icon: 'grid', to: '/' },
+  { label: 'Overview', icon: 'grid', to: '/' },
   { label: 'Websites', icon: 'globe', to: '/websites' },
-  { label: 'Deployments', icon: 'box', to: '/deployments' },
   { label: 'Web services', icon: 'layers', to: '/webservices' },
+  { label: 'Deployments', icon: 'box', to: '/deployments' },
+  { label: 'Usage', icon: 'activity', to: '/usage' },
   { label: 'Logs', icon: 'file', to: '/logs' },
   { label: 'Server', icon: 'server', to: '/server' },
   { label: 'Settings', icon: 'settings', to: '/settings' },
