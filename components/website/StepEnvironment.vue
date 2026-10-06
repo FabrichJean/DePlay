@@ -52,13 +52,6 @@ watch(() => [props.form.source, props.form.repository, props.form.branch, props.
 
 <template>
   <div class="env">
-    <p class="intro">
-      Variables available to the install and build commands, for example an API address or a build flag.
-    </p>
-    <p class="warning">
-      Values are written into the built files: anything the visitors' browser needs is visible to them. Do not put a
-      private secret here if it must stay private.
-    </p>
     <p v-if="detected.length" class="detected">
       {{ detected.length }} variable{{ detected.length > 1 ? 's' : '' }} found in .env.example. Add their values below.
     </p>
