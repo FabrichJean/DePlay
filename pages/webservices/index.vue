@@ -123,17 +123,6 @@ const visibleProjects = computed(() => {
       </div>
     </div>
 
-    <div class="layout">
-      <aside class="side">
-        <section class="status-card">
-          <span class="status-dot" />
-          <div class="status-text">
-            <p class="status-title">All systems operational</p>
-            <p class="status-caption">Your infrastructure is running smoothly.</p>
-          </div>
-          <AppIcon name="arrowRight" :size="16" class="status-arrow" />
-        </section>
-      </aside>
 
       <section class="main">
         <ul class="list" :class="`is-${view}`">
@@ -147,7 +136,6 @@ const visibleProjects = computed(() => {
           No web services match your filters.
         </p>
       </section>
-    </div>
   </div>
 
   <LandingHero v-else-if="isLoaded" />
