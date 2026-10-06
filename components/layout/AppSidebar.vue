@@ -14,7 +14,6 @@ const navigation: NavItem[] = [
   { label: 'Deployments', icon: 'box', to: '/deployments' },
   { label: 'Usage', icon: 'activity', to: '/usage' },
   { label: 'Logs', icon: 'file', to: '/logs' },
-  { label: 'Server', icon: 'server', to: '/server' },
   { label: 'Settings', icon: 'settings', to: '/settings' },
 ]
 
