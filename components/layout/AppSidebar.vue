@@ -8,6 +8,7 @@ interface NavItem {
 }
 
 const navigation: NavItem[] = [
+  { label: 'Dashboard', icon: 'grid', to: '/dashboard' },
   { label: 'Projects', icon: 'folder', to: '/' },
   { label: 'Deployments', icon: 'box', to: '/deployments' },
   { label: 'Services', icon: 'layers', to: '/services' },
