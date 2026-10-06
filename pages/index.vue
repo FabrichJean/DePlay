@@ -1,152 +1,253 @@
 <script setup lang="ts">
-import type { ProjectStatus } from '~/types/project'
-import { STATUS_META } from '~/constants/status'
+import type { ProjectsResponse, Project } from '~/types/project'
+import type { DeploymentSummary } from '~/types/deployment'
+import limitsConfig from '~/config/limits.json'
 
 const { isLoaded, isSignedIn } = useAuth()
-const { data } = await useProjects()
 
 useHead({
-  title: () => (isSignedIn.value ? 'Projects · Deplay' : 'Deplay'),
+  title: () => (isSignedIn.value ? 'Dashboard · Deplay' : 'Deplay'),
 })
 
-type Filter = 'all' | ProjectStatus
-type SortKey = 'last-updated' | 'name'
+interface ServiceItem {
+  id: string
+  name: string
+  state: string
+  memory: string | null
+  memoryLimit: string
+}
 
-const FILTERS: { key: Filter; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'live', label: 'Live' },
-  { key: 'building', label: 'Building' },
-  { key: 'attention', label: 'Attention' },
-]
+interface ServicesResponse {
+  available: boolean
+  services: ServiceItem[]
+}
 
-const query = ref('')
-const filter = ref<Filter>('all')
-const sort = ref<SortKey>('last-updated')
-const view = ref<'grid' | 'list'>('grid')
+const REFRESH_MS = 30_000
+const { user } = useUser()
 
-const projects = computed(() => data.value?.projects ?? [])
-const usage = computed(() => data.value?.usage)
+const projects = ref<Project[]>([])
+const usage = ref<ProjectsResponse['usage'] | null>(null)
+const deployments = ref<DeploymentSummary[]>([])
+const services = ref<ServiceItem[]>([])
+const loaded = ref(false)
+let timer: ReturnType<typeof setInterval> | undefined
 
-// Compteurs par statut, calculés en une seule passe
-const counts = computed(() => {
-  const result: Record<Filter, number> = { all: projects.value.length, live: 0, building: 0, attention: 0 }
-  for (const project of projects.value) result[project.status]++
-  return result
+async function load() {
+  // Sans session, pas de données à charger : la page d'accueil s'affiche à la place
+  if (!isSignedIn.value) return
+  // Trois sources indépendantes : une panne de l'une n'empêche pas d'afficher les autres
+  const [projectsResult, deploymentsResult, servicesResult] = await Promise.allSettled([
+    $fetch<ProjectsResponse>('/api/projects'),
+    $fetch<{ deployments: DeploymentSummary[] }>('/api/deployments'),
+    $fetch<ServicesResponse>('/api/services'),
+  ])
+  if (projectsResult.status === 'fulfilled') {
+    projects.value = projectsResult.value.projects
+    usage.value = projectsResult.value.usage
+  }
+  if (deploymentsResult.status === 'fulfilled') deployments.value = deploymentsResult.value.deployments
+  if (servicesResult.status === 'fulfilled') services.value = servicesResult.value.services
+  loaded.value = true
+}
+
+// La session Clerk peut arriver après le montage : on charge dès qu'elle est connue
+watch(isSignedIn, (signedIn) => {
+  if (signedIn) load()
 })
 
-// Recherche, filtre et tri enchaînés sur la liste déjà chargée
-const visibleProjects = computed(() => {
-  const q = query.value.trim().toLowerCase()
-
-  const matching = projects.value.filter((project) => {
-    const matchesFilter = filter.value === 'all' || project.status === filter.value
-    const matchesQuery =
-      !q || project.name.toLowerCase().includes(q) || project.url.toLowerCase().includes(q)
-    return matchesFilter && matchesQuery
-  })
-
-  return [...matching].sort((a, b) =>
-    sort.value === 'name'
-      ? a.name.localeCompare(b.name)
-      : b.updatedAt.localeCompare(a.updatedAt),
-  )
+onMounted(() => {
+  load()
+  timer = setInterval(load, REFRESH_MS)
 })
+onBeforeUnmount(() => clearInterval(timer))
+
+const greeting = computed(() => {
+  const hour = new Date().getHours()
+  const part = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
+  const name = user.value?.firstName
+  return name ? `${part}, ${name}` : part
+})
+
+const today = new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })
+
+const failedRecently = computed(() => deployments.value.filter((item) => item.status === 'failed').slice(0, 5))
+const liveCount = computed(() => projects.value.filter((item) => item.status === 'live').length)
+const buildingCount = computed(() => projects.value.filter((item) => item.status === 'building').length)
+const attentionProjects = computed(() => projects.value.filter((item) => item.status === 'attention'))
+
+const runningServices = computed(() => services.value.filter((item) => item.state === 'running').length)
+const stoppedServices = computed(() => services.value.filter((item) => item.state !== 'running'))
+
+// Trafic : visites par jour, additionnées sur tous les projets (14 jours)
+const traffic = computed(() => {
+  const days = 14
+  const totals = new Array(days).fill(0)
+  for (const project of projects.value) {
+    project.sparkline.forEach((value, index) => {
+      if (index < days) totals[index] += value
+    })
+  }
+  return totals
+})
+const trafficTotal = computed(() => traffic.value.reduce((sum, value) => sum + value, 0))
+const trafficPaths = computed(() => sparklinePaths(traffic.value, 100, 40))
+
+const storagePercent = computed(() => usage.value?.usedPercent ?? 0)
+
+const STATUS_LABEL: Record<string, string> = { live: 'Live', building: 'Building', attention: 'Attention' }
+const statusCounts = computed(() => ({
+  live: liveCount.value,
+  building: buildingCount.value,
+  attention: attentionProjects.value.length,
+}))
+
+function statusTone(status: string): 'success' | 'neutral' {
+  return status === 'deployed' ? 'success' : 'neutral'
+}
 </script>
 
 <template>
   <div v-if="isSignedIn" class="page">
-    <header class="page-head">
+    <section class="hero">
       <div>
-        <h1>Projects</h1>
-        <p class="subtitle">Manage and monitor your applications across all workspaces.</p>
+        <p class="eyebrow">{{ today }}</p>
+        <h1>{{ greeting }}</h1>
+        <p class="subtitle">
+          {{ projects.length }} project{{ projects.length === 1 ? '' : 's' }} ·
+          {{ runningServices }} of {{ services.length }} web service{{ services.length === 1 ? '' : 's' }} running
+        </p>
       </div>
-
-      <NewProjectMenu />
-    </header>
-
-    <div class="toolbar">
-      <label class="search">
-        <AppIcon name="search" :size="18" />
-        <input v-model="query" type="search" placeholder="Search projects..." />
-      </label>
-
-      <div class="filters" role="group" aria-label="Filter by status">
-        <button
-          v-for="item in FILTERS"
-          :key="item.key"
-          type="button"
-          class="chip"
-          :class="{ 'is-active': filter === item.key }"
-          :aria-pressed="filter === item.key"
-          @click="filter = item.key"
-        >
-          <span
-            v-if="item.key !== 'all'"
-            class="chip-dot"
-            :style="{ background: STATUS_META[item.key].color }"
-          />
-          {{ item.label }}
-          <span class="chip-count">{{ counts[item.key] }}</span>
-        </button>
+      <div class="hero-actions">
+        <NuxtLink to="/new/website" class="btn btn-primary">New website</NuxtLink>
+        <NuxtLink to="/new/website?type=webservice" class="btn">New web service</NuxtLink>
       </div>
+    </section>
 
-      <div class="toolbar-end">
-        <label class="select">
-          <select v-model="sort" aria-label="Sort projects">
-            <option value="last-updated">Last updated</option>
-            <option value="name">Name</option>
-          </select>
-          <AppIcon name="chevronDown" :size="14" />
-        </label>
+    <section class="kpis">
+      <article class="kpi">
+        <span class="kpi-label">Live projects</span>
+        <p class="kpi-value">{{ liveCount }}<span class="kpi-of"> / {{ projects.length }}</span></p>
+        <p class="kpi-note">{{ buildingCount }} building · {{ attentionProjects.length }} need attention</p>
+      </article>
 
-        <div class="view-toggle" role="group" aria-label="View mode">
-          <button
-            type="button"
-            class="icon-btn"
-            :class="{ 'is-active': view === 'grid' }"
-            aria-label="Grid view"
-            @click="view = 'grid'"
-          >
-            <AppIcon name="grid" :size="18" />
-          </button>
-          <button
-            type="button"
-            class="icon-btn"
-            :class="{ 'is-active': view === 'list' }"
-            aria-label="List view"
-            @click="view = 'list'"
-          >
-            <AppIcon name="list" :size="18" />
-          </button>
+      <article class="kpi">
+        <span class="kpi-label">Web services</span>
+        <p class="kpi-value">{{ runningServices }}<span class="kpi-of"> / {{ services.length }}</span></p>
+        <p class="kpi-note">
+          {{ services.length ? `${limitsConfig.maxWebServicesPerUser} allowed per account` : 'None yet' }}
+        </p>
+      </article>
+
+      <article class="kpi">
+        <span class="kpi-label">Visits, 14 days</span>
+        <p class="kpi-value">{{ trafficTotal }}</p>
+        <p class="kpi-note">Across all your sites</p>
+      </article>
+
+      <article class="kpi">
+        <span class="kpi-label">Storage</span>
+        <p class="kpi-value">{{ storagePercent }}%</p>
+        <div class="bar" role="progressbar" :aria-valuenow="storagePercent" aria-valuemin="0" aria-valuemax="100">
+          <span :style="{ width: `${storagePercent}%` }" />
         </div>
-      </div>
-    </div>
+        <p class="kpi-note">{{ usage?.items[0]?.value ?? '—' }}</p>
+      </article>
+    </section>
 
-    <div class="layout">
-      <aside v-if="usage" class="side">
-        <WorkspaceUsage :usage="usage" />
+    <div class="columns">
+      <section class="card traffic">
+        <header class="card-head">
+          <h2>Traffic</h2>
+          <span class="muted">Last 14 days</span>
+        </header>
+        <svg
+          v-if="trafficTotal > 0"
+          class="chart"
+          viewBox="0 0 100 40"
+          preserveAspectRatio="none"
+          role="img"
+          aria-label="Visits per day over the last 14 days"
+        >
+          <path :d="trafficPaths.area" class="area" />
+          <path :d="trafficPaths.line" class="line" vector-effect="non-scaling-stroke" />
+        </svg>
+        <p v-else class="empty">No visits yet. Publish a site to see its traffic here.</p>
+      </section>
 
-        <section class="status-card">
-          <span class="status-dot" />
-          <div class="status-text">
-            <p class="status-title">All systems operational</p>
-            <p class="status-caption">Your infrastructure is running smoothly.</p>
-          </div>
-          <AppIcon name="arrowRight" :size="16" class="status-arrow" />
-        </section>
-      </aside>
-
-      <section class="main">
-        <ul class="list" :class="`is-${view}`">
-          <li v-for="project in visibleProjects" :key="project.id">
-            <ProjectCard v-if="view === 'grid'" :project="project" />
-            <ProjectRow v-else :project="project" />
+      <section class="card attention">
+        <header class="card-head">
+          <h2>Needs attention</h2>
+          <span class="muted">{{ failedRecently.length + stoppedServices.length + attentionProjects.length }}</span>
+        </header>
+        <ul v-if="failedRecently.length || stoppedServices.length || attentionProjects.length" class="alerts">
+          <li v-for="item in failedRecently" :key="`d-${item.id}`">
+            <NuxtLink :to="`/deployments/${item.id}`" class="alert">
+              <span class="dot dot-danger" />
+              <span>Failed build for <strong>{{ item.projectName }}</strong></span>
+              <span class="muted">{{ item.createdLabel }}</span>
+            </NuxtLink>
+          </li>
+          <li v-for="item in stoppedServices" :key="`s-${item.id}`">
+            <NuxtLink :to="`/logs?project=${item.id}`" class="alert">
+              <span class="dot dot-warn" />
+              <span><strong>{{ item.name }}</strong> is {{ item.state === 'running' ? 'running' : 'not running' }}</span>
+              <span class="muted">View logs</span>
+            </NuxtLink>
+          </li>
+          <li v-for="item in attentionProjects" :key="`p-${item.id}`">
+            <NuxtLink :to="`/projects/${item.id}`" class="alert">
+              <span class="dot dot-warn" />
+              <span><strong>{{ item.name }}</strong> needs attention</span>
+              <span class="muted">Open</span>
+            </NuxtLink>
           </li>
         </ul>
+        <p v-else class="empty">All clear. Nothing needs your attention.</p>
+      </section>
+    </div>
 
-        <p v-if="!visibleProjects.length" class="empty">
-          No projects match your filters.
-        </p>
+    <div class="columns">
+      <section class="card">
+        <header class="card-head">
+          <h2>Recent deployments</h2>
+          <NuxtLink to="/deployments" class="link">See all</NuxtLink>
+        </header>
+        <ul v-if="deployments.length" class="rows">
+          <li v-for="item in deployments.slice(0, 6)" :key="item.id">
+            <NuxtLink :to="item.projectId ? `/projects/${item.projectId}` : `/deployments/${item.id}`" class="row">
+              <span class="row-main">
+                <strong>{{ item.projectName }}</strong>
+                <span class="muted">{{ item.branch || 'upload' }} · {{ item.createdLabel }}</span>
+              </span>
+              <StatusBadge
+                :label="item.status === 'deployed' ? 'Deployed' : item.status === 'failed' ? 'Failed' : 'Building'"
+                :tone="statusTone(item.status)"
+                :pulse="item.status === 'building'"
+              />
+            </NuxtLink>
+          </li>
+        </ul>
+        <p v-else class="empty">{{ loaded ? 'No deployments yet.' : 'Loading…' }}</p>
+      </section>
+
+      <section class="card">
+        <header class="card-head">
+          <h2>Projects by status</h2>
+          <NuxtLink to="/projects" class="link">Open projects</NuxtLink>
+        </header>
+        <ul class="statuses">
+          <li v-for="(count, key) in statusCounts" :key="key">
+            <span class="status-name">{{ STATUS_LABEL[key] }}</span>
+            <span class="status-track">
+              <span
+                class="status-fill"
+                :class="`is-${key}`"
+                :style="{ width: projects.length ? `${(count / projects.length) * 100}%` : '0%' }"
+              />
+            </span>
+            <span class="status-count">{{ count }}</span>
+          </li>
+        </ul>
       </section>
     </div>
   </div>
@@ -161,281 +262,264 @@ const visibleProjects = computed(() => {
   gap: 20px;
 }
 
-.page-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-}
-
 h1 {
-  font-size: 30px;
+  font-size: 26px;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
 
-.subtitle {
+h2 {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.eyebrow {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--primary);
+  margin-bottom: 6px;
+}
+
+.subtitle,
+.muted {
   margin-top: 4px;
   color: var(--muted);
-}
-
-.new-btn {
-  height: 42px;
-  padding: 0 14px 0 16px;
-  flex-shrink: 0;
-}
-
-.new-chevron {
-  margin-left: 4px;
-  opacity: 0.8;
-}
-
-.toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  padding: 10px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-}
-
-.search {
-  flex: 1 1 260px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  height: 40px;
-  padding: 0 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg);
-  color: var(--muted);
-}
-
-.search:focus-within {
-  border-color: var(--primary-border);
-}
-
-.search input {
-  flex: 1;
-  min-width: 0;
-  background: none;
-  border: 0;
-  outline: 0;
-  color: var(--text);
-}
-
-.search input::placeholder {
-  color: var(--subtle);
-}
-
-.filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 36px;
-  padding: 0 12px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  color: var(--muted);
   font-size: 13px;
-  font-weight: 500;
-  transition: color 0.15s, background 0.15s, border-color 0.15s;
 }
 
-.chip:hover {
-  color: var(--text);
-}
-
-.chip.is-active {
-  color: var(--primary);
-  background: var(--primary-soft);
-  border-color: var(--primary-border);
-}
-
-.chip-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-}
-
-.chip-count {
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
-  border-radius: 999px;
-  display: inline-grid;
-  place-items: center;
-  font-size: 11px;
-  background: var(--card-hover);
-  color: var(--muted);
-}
-
-.chip.is-active .chip-count {
-  background: var(--primary);
-  color: #ffffff;
-}
-
-.toolbar-end {
+/* Bandeau d'accueil : léger dégradé dans les couleurs de la marque */
+.hero {
   display: flex;
+  justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 26px 28px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--primary) 22%, transparent), transparent 60%),
+    var(--card);
+}
+
+.hero-actions {
+  display: flex;
   gap: 10px;
-  margin-left: auto;
+  flex-wrap: wrap;
 }
 
-.select {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  height: 40px;
-  color: var(--muted);
-}
-
-.select select {
-  appearance: none;
-  height: 40px;
-  padding: 0 34px 0 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg);
-  color: var(--text);
-  font: inherit;
-  cursor: pointer;
-}
-
-.select svg {
-  position: absolute;
-  right: 12px;
-  pointer-events: none;
-}
-
-.view-toggle {
-  display: flex;
-  gap: 4px;
-  padding: 3px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg);
-}
-
-.view-toggle .icon-btn {
-  width: 34px;
-  height: 34px;
-  border: 0;
-  background: none;
-}
-
-.view-toggle .icon-btn.is-active {
-  background: var(--primary-soft);
-  color: var(--primary);
-}
-
-.layout {
+.kpis {
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
-  gap: 20px;
-  align-items: start;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
 }
 
-.side {
+.kpi {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  position: sticky;
-  top: 94px;
-}
-
-.status-card {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px 18px;
+  gap: 6px;
+  padding: 18px 20px;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   background: var(--card);
 }
 
-.status-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #22c78a;
-  box-shadow: 0 0 0 4px rgba(34, 199, 138, 0.15);
-  flex-shrink: 0;
+.kpi-label {
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
-.status-text {
-  flex: 1;
-  min-width: 0;
+.kpi-value {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
-.status-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: #22c78a;
+.kpi-of {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--muted);
 }
 
-.status-caption {
+.kpi-note {
   font-size: 12px;
   color: var(--muted);
 }
 
-.status-arrow {
-  color: var(--muted);
-}
-
-.list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.columns {
   display: grid;
-  gap: 16px;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: 14px;
 }
 
-.list.is-grid {
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+.card {
+  padding: 18px 20px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--card);
+}
+
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 14px;
+}
+
+.link {
+  font-size: 13px;
+  color: var(--primary);
 }
 
 .empty {
-  padding: 48px 0;
-  text-align: center;
   color: var(--muted);
+  font-size: 13px;
+  padding: 24px 0;
+  text-align: center;
 }
 
-@media (max-width: 1280px) {
-  .layout {
-    grid-template-columns: minmax(0, 1fr);
-  }
+.chart {
+  display: block;
+  width: 100%;
+  height: 180px;
+}
 
-  .side {
-    position: static;
-    display: grid;
+.line {
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.area {
+  fill: color-mix(in srgb, var(--primary) 16%, transparent);
+}
+
+.bar {
+  height: 6px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.bar span {
+  display: block;
+  height: 100%;
+  background: var(--primary);
+}
+
+.alerts,
+.rows,
+.statuses {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.alert,
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+
+.alert:hover,
+.row:hover {
+  background: var(--card-hover);
+}
+
+.alert .muted {
+  margin-left: auto;
+  font-size: 12px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+
+.dot-danger {
+  background: #f87171;
+}
+
+.dot-warn {
+  background: #f59e0b;
+}
+
+.row {
+  justify-content: space-between;
+}
+
+.row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.statuses li {
+  display: grid;
+  grid-template-columns: 80px 1fr 32px;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  font-size: 13px;
+}
+
+.status-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.status-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+
+.status-fill.is-live {
+  background: #22c78a;
+}
+
+.status-fill.is-building {
+  background: #3b82f6;
+}
+
+.status-fill.is-attention {
+  background: #f59e0b;
+}
+
+.status-count {
+  text-align: right;
+  font-weight: 600;
+}
+
+@media (max-width: 960px) {
+  .kpis {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: start;
+  }
+
+  .columns {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
-@media (max-width: 720px) {
-  .side {
+@media (max-width: 520px) {
+  .kpis {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .list.is-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .toolbar-end {
-    margin-left: 0;
-    width: 100%;
-    justify-content: space-between;
   }
 }
 </style>
