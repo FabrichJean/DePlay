@@ -2,20 +2,29 @@ import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import type { H3Event } from 'h3'
 
-// Landing statique (public/landing, template « Site Immersif ») servie sur « / » pour les visiteurs
-// non connectés : l'adresse reste « / ». La balise <base> fait pointer ses chemins relatifs
-// (styles, scripts, images) vers /landing/ ; le moteur gère lui-même les ancres (#…) sans changer d'adresse.
-const LANDING_FILE = resolve(process.cwd(), 'public/landing-hero-concept/index.html')
+// Site public statique (public/landing-hero-concept) servi sous des adresses propres :
+// « / » (page d'accueil, visiteurs non connectés seulement), « /runtimes » et « /docs »
+// (toujours accessibles). La balise <base> fait pointer les chemins relatifs de chaque page
+// (site.css, les liens entre pages) vers /landing-hero-concept/, où vivent les vrais fichiers.
+const SITE_DIR = resolve(process.cwd(), 'public/landing-hero-concept')
 const BASE_TAG = '<base href="/landing-hero-concept/">'
 
-let cached: string | null = null
+// route → fichier, et si la page reste visible une fois connecté
+const ROUTES: Record<string, { file: string, public: boolean }> = {
+  '/': { file: 'index.html', public: false },
+  '/runtimes': { file: 'runtimes.html', public: true },
+  '/docs': { file: 'docs.html', public: true },
+}
 
-async function landingHtml(): Promise<string> {
+const cache = new Map<string, string>()
+
+async function pageHtml(file: string): Promise<string> {
   // En développement, on relit le fichier à chaque fois pour voir les modifications
-  if (cached && !import.meta.dev) return cached
-  const html = await readFile(LANDING_FILE, 'utf8')
-  cached = html.replace(/<head>/i, `<head>\n  ${BASE_TAG}`)
-  return cached
+  if (cache.has(file) && !import.meta.dev) return cache.get(file) as string
+  const html = await readFile(resolve(SITE_DIR, file), 'utf8')
+  const withBase = html.replace(/<head>/i, `<head>\n  ${BASE_TAG}`)
+  cache.set(file, withBase)
+  return withBase
 }
 
 // Connecté si le middleware Clerk a déjà tourné et trouvé une session ; sinon, d'après le cookie
@@ -29,10 +38,13 @@ function isSignedIn(event: H3Event): boolean {
 }
 
 export default defineEventHandler(async (event) => {
-  if (event.method !== 'GET' || event.path.split('?')[0] !== '/') return
-  if (isSignedIn(event)) return
+  if (event.method !== 'GET') return
+
+  const route = ROUTES[event.path.split('?')[0]]
+  if (!route) return
+  if (!route.public && isSignedIn(event)) return
 
   setResponseHeader(event, 'Content-Type', 'text/html; charset=utf-8')
   setResponseHeader(event, 'Cache-Control', 'no-store')
-  return landingHtml()
+  return pageHtml(route.file)
 })

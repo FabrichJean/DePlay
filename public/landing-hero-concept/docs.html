@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Documentation — Deplay</title>
+<meta name="description" content="Comment Deplay construit, publie et surveille vos sites et vos web services.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site.css">
+<style>
+  .docs{display:grid;grid-template-columns:200px 1fr;gap:56px;padding:40px 0 100px}
+  .docs-nav{position:sticky;top:40px;align-self:start;display:flex;flex-direction:column;gap:2px}
+  .docs-nav a{font-size:13px;color:var(--muted);padding:7px 0}
+  .docs-nav a:hover{color:var(--text)}
+  .docs h1{font-size:34px;font-weight:800;letter-spacing:-0.02em;margin:0 0 8px}
+  .docs h2{font-size:19px;font-weight:700;margin:40px 0 10px;scroll-margin-top:24px}
+  .docs h2:first-of-type{margin-top:0}
+  .docs p{font-size:14px;line-height:1.7;color:var(--muted);margin:0 0 12px;max-width:620px}
+  .docs code{background:var(--card);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:12.5px;color:var(--text)}
+  .steps{display:flex;flex-direction:column;gap:0;margin:18px 0 0;max-width:620px}
+  .step{display:flex;gap:16px;padding:16px 0;border-top:1px solid var(--border)}
+  .step:first-child{border-top:0}
+  .step .n{font-family:var(--mono);color:var(--subtle);font-size:13px;width:18px;flex-shrink:0}
+  .step .t{font-weight:600;font-size:14px}
+  .step .d{font-size:13px;color:var(--muted);margin-top:3px}
+  @media (max-width:720px){ .docs{grid-template-columns:1fr;gap:28px} .docs-nav{position:static;flex-direction:row;flex-wrap:wrap;gap:16px} }
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M5 3 L21 12 L5 21 Z" fill="#fff"/></svg>
+      Deplay <span class="crumb">/ docs</span>
+    </div>
+    <nav>
+      <div class="nav-links">
+        <a href="/runtimes">Runtimes</a>
+        <a href="/docs" class="is-active">Docs</a>
+      </div>
+      <a href="/sign-in" class="nav-cta">Commencer →</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="docs">
+      <nav class="docs-nav">
+        <a href="/docs#overview">Vue d'ensemble</a>
+        <a href="/docs#deploy">Déploiement</a>
+        <a href="/docs#services">Web services</a>
+        <a href="/docs#env">Variables d'environnement</a>
+        <a href="/docs#faq">FAQ</a>
+      </nav>
+
+      <div>
+        <h1 id="overview">Documentation</h1>
+        <p>Comment Deplay construit, publie et surveille vos sites et vos API.</p>
+
+        <h2 id="deploy">Déploiement</h2>
+        <p>Un déploiement passe toujours par les trois mêmes étapes, que ce soit un site statique ou un web service.</p>
+        <div class="steps">
+          <div class="step">
+            <span class="n">01</span>
+            <div><div class="t">Connectez</div><div class="d">Importez un dépôt GitHub, ou déposez vos fichiers directement. Deplay détecte le framework et pré-remplit les commandes.</div></div>
+          </div>
+          <div class="step">
+            <span class="n">02</span>
+            <div><div class="t">Déployez</div><div class="d">Le build tourne dans un conteneur isolé, séparé de votre compte et des autres projets.</div></div>
+          </div>
+          <div class="step">
+            <span class="n">03</span>
+            <div><div class="t">Suivez</div><div class="d">Logs de build, logs d'exécution et usage de stockage sont visibles en direct depuis le tableau de bord.</div></div>
+          </div>
+        </div>
+
+        <h2 id="services">Web services</h2>
+        <p>
+          Un web service est un processus de longue durée, écoutant sur un port, avec sa propre adresse publique
+          (<code>&lt;nom&gt;.fabrich.site</code>). Deux runtimes sont disponibles : voir <a href="/runtimes">Runtimes</a>.
+          Un service arrêté redémarre seul ; limite de 2 services par compte, 1 Go de mémoire chacun.
+        </p>
+
+        <h2 id="env">Variables d'environnement</h2>
+        <p>
+          Chaque projet a ses propres variables, chiffrées et injectées au démarrage du build et du service.
+          Elles s'importent depuis un fichier <code>.env</code>, se collent directement, ou s'ajoutent une par une.
+          Les modifier déclenche un nouveau déploiement.
+        </p>
+
+        <h2 id="faq">FAQ</h2>
+        <p><strong style="color:var(--text)">Mon dépôt privé fonctionne-t-il ?</strong><br>Oui, Deplay se connecte à votre compte GitHub et clone le dépôt lors du build.</p>
+        <p><strong style="color:var(--text)">Que se passe-t-il si je supprime un projet ?</strong><br>Le conteneur du web service est arrêté et sa route publique retirée dans la minute.</p>
+        <p><strong style="color:var(--text)">Le stockage est-il partagé ?</strong><br>Oui : 700 Mo au total par compte, pour tous les sites et web services réunis.</p>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <span>© 2026 Deplay — fabrich.site</span>
+    <a href="/">Accueil</a>
+  </footer>
+</body>
+</html>

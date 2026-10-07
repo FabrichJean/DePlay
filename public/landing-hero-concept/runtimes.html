@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Runtimes — Deplay</title>
+<meta name="description" content="Node.js et Python : les deux runtimes disponibles pour les web services Deplay, avec leurs commandes réelles.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site.css">
+<style>
+  .rt{display:grid;grid-template-columns:1fr 280px;gap:48px;padding:40px 0;border-bottom:1px solid var(--border)}
+  .rt:last-of-type{border-bottom:0}
+  .rt h2{font-size:26px;font-weight:800;letter-spacing:-0.01em;margin:0 0 10px}
+  .rt .pill{margin-bottom:18px}
+  .rt ul{margin:18px 0 0;padding-left:18px;color:var(--muted);font-size:13.5px;line-height:1.7}
+  .meta dt{font-family:var(--mono);font-size:11px;letter-spacing:0.08em;color:var(--subtle);text-transform:uppercase;margin-top:18px}
+  .meta dt:first-child{margin-top:0}
+  .meta dd{margin:4px 0 0;font-family:var(--mono);font-size:13px;word-break:break-all}
+  @media (max-width:760px){ .rt{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M5 3 L21 12 L5 21 Z" fill="#fff"/></svg>
+      Deplay <span class="crumb">/ runtimes</span>
+    </div>
+    <nav>
+      <div class="nav-links">
+        <a href="/runtimes" class="is-active">Runtimes</a>
+        <a href="/docs">Docs</a>
+      </div>
+      <a href="/sign-in" class="nav-cta">Commencer →</a>
+    </nav>
+  </header>
+
+  <main>
+    <section style="padding:48px 0 0">
+      <h1 style="font-size:clamp(32px,5vw,48px);font-weight:800;letter-spacing:-0.02em;margin:0">Runtimes</h1>
+      <p class="lede" style="margin-top:12px">
+        Un web service Deplay tourne dans l'un de ces deux runtimes. L'image, la commande d'installation
+        et la commande de démarrage sont celles réellement utilisées par le worker.
+      </p>
+    </section>
+
+    <div class="rt">
+      <div>
+        <h2>Node.js</h2>
+        <span class="pill ok"><span class="dot"></span>node:22-slim</span>
+        <div class="cmdbox">
+          <span><span class="prompt">$</span>npm install</span>
+        </div>
+        <ul>
+          <li>Pour une API Express, Fastify, Hono, ou tout serveur Node qui écoute sur la variable <code>PORT</code>.</li>
+          <li>Le dossier du dépôt est monté tel quel dans le conteneur, rien n'est copié au préalable.</li>
+          <li>Redémarre automatiquement si le processus s'arrête.</li>
+        </ul>
+      </div>
+      <dl class="meta">
+        <dt>Image</dt><dd>docker.io/library/node:22-slim</dd>
+        <dt>Installation</dt><dd>npm install</dd>
+        <dt>Démarrage</dt><dd>node server.js</dd>
+        <dt>Mémoire</dt><dd>1 Go</dd>
+        <dt>CPU</dt><dd>1</dd>
+      </dl>
+    </div>
+
+    <div class="rt">
+      <div>
+        <h2>Python</h2>
+        <span class="pill ok"><span class="dot"></span>python:3.12-slim + ffmpeg</span>
+        <div class="cmdbox">
+          <span><span class="prompt">$</span>pip install -r requirements.txt</span>
+        </div>
+        <ul>
+          <li>Pour une API FastAPI, Flask ou tout serveur ASGI/WSGI qui écoute sur la variable <code>PORT</code>.</li>
+          <li><code>ffmpeg</code> est installé dans l'image, pour les traitements audio et vidéo.</li>
+          <li>Les paquets s'installent dans <code>/work/.pylocal</code> (<code>PYTHONUSERBASE</code>), propre à chaque projet.</li>
+        </ul>
+      </div>
+      <dl class="meta">
+        <dt>Image</dt><dd>localhost/deplay-python:3.12-ffmpeg</dd>
+        <dt>Installation</dt><dd>pip install -r requirements.txt</dd>
+        <dt>Démarrage</dt><dd>python -m uvicorn main:app --host 0.0.0.0 --port $PORT</dd>
+        <dt>Variables d'environnement</dt><dd>PYTHONUSERBASE, PYTHONDONTWRITEBYTECODE</dd>
+        <dt>Mémoire</dt><dd>1 Go</dd>
+        <dt>CPU</dt><dd>1</dd>
+      </dl>
+    </div>
+  </main>
+
+  <footer>
+    <span>© 2026 Deplay — fabrich.site</span>
+    <a href="/">Accueil</a>
+  </footer>
+</body>
+</html>
