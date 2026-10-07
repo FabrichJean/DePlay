@@ -5,8 +5,8 @@ import type { H3Event } from 'h3'
 // Landing statique (public/landing, template « Site Immersif ») servie sur « / » pour les visiteurs
 // non connectés : l'adresse reste « / ». La balise <base> fait pointer ses chemins relatifs
 // (styles, scripts, images) vers /landing/ ; le moteur gère lui-même les ancres (#…) sans changer d'adresse.
-const LANDING_FILE = resolve(process.cwd(), 'public/landing/index.html')
-const BASE_TAG = '<base href="/landing/">'
+const LANDING_FILE = resolve(process.cwd(), 'public/landing-hero-concept/index.html')
+const BASE_TAG = '<base href="/landing-hero-concept/">'
 
 let cached: string | null = null
 
