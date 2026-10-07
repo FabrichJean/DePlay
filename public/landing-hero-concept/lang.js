@@ -9,7 +9,7 @@ window.DEPLAY_I18N = {
     'nav.crumb': '/ platform',
     'nav.runtimes': 'Runtimes',
     'nav.docs': 'Docs',
-    'nav.cta': 'Get started →',
+    'nav.cta': 'Start for free →',
 
     'hero.card1.quote': '“Simple, fast, and no hassle. Exactly what I needed.”',
     'hero.card2.quote': '“Deplay let me put my API online in minutes. Fast, simple and reliable.”',
@@ -150,7 +150,7 @@ window.DEPLAY_I18N = {
     'nav.crumb': '/ plateforme',
     'nav.runtimes': 'Runtimes',
     'nav.docs': 'Docs',
-    'nav.cta': 'Commencer →',
+    'nav.cta': 'Commencer gratuitement →',
 
     'hero.card1.quote': '“Simple, rapide et sans prise de tête. Exactement ce qu’il me fallait.”',
     'hero.card2.quote': '“Deplay m’a permis de mettre mon API en ligne en quelques minutes. C’est rapide, simple et fiable.”',

@@ -8,14 +8,15 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="stylesheet" href="site.css">
 </head>
 <body>
   <header>
-    <div class="brand">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M5 3 L21 12 L5 21 Z" fill="#fff"/></svg>
+    <a href="/" class="brand" aria-label="Deplay — home">
+      <svg width="24" height="24" viewBox="12 26 103 108" fill="none" aria-hidden="true"><defs><linearGradient id="dpl" x1="20" y1="20" x2="115" y2="135" gradientUnits="userSpaceOnUse"><stop stop-color="#3B82F6"/><stop offset="1" stop-color="#06B6D4"/></linearGradient></defs><path d="M28 35C24.7 33.1 20.5 35.5 20.5 39.3V61.1C20.5 63.5 21.8 65.7 23.9 66.9L67.4 92.1C70.7 94 74.8 91.6 74.8 87.8V66C74.8 63.6 73.6 61.4 71.5 60.2L28 35Z" fill="url(#dpl)"/><path d="M28 125C24.7 126.9 20.5 124.5 20.5 120.7V98.9C20.5 96.5 21.8 94.3 23.9 93.1L67.4 67.9C70.7 66 74.8 68.4 74.8 72.2V94C74.8 96.4 73.6 98.6 71.5 99.8L28 125Z" fill="url(#dpl)" opacity="0.92"/><path d="M67.4 92.1L103.2 71.4C106.5 69.5 106.5 64.7 103.2 62.8L67.4 42.1C64.1 40.2 60 42.6 60 46.4V87.8C60 91.6 64.1 94 67.4 92.1Z" fill="url(#dpl)"/></svg>
       Deplay <span class="crumb" data-i18n="nav.crumb">/ platform</span>
-    </div>
+    </a>
     <nav>
       <div class="nav-links">
         <a href="/runtimes" data-i18n="nav.runtimes">Runtimes</a>
@@ -198,16 +199,6 @@
             <div class="lc-val">700 <small>MB</small></div>
             <p class="lc-sub" data-i18n="limits.storage.sub">shared between sites and web services</p>
             <div class="lc-spec"><span>storageQuotaBytes</span><span>734003200</span></div>
-          </article>
-
-          <article class="lim-card c-services">
-            <div class="lc-top">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.6 3.8 5.6 3.8 9s-1.2 6.4-3.8 9c-2.6-2.6-3.8-5.6-3.8-9S9.4 5.6 12 3z"/></svg>
-              <span data-i18n="limits.services.title">Web services</span>
-            </div>
-            <div class="lc-val">02</div>
-            <p class="lc-sub" data-i18n="limits.services.sub">per account</p>
-            <div class="lc-dots" aria-hidden="true"><i class="on"></i><i class="on"></i></div>
           </article>
 
           <article class="lim-card c-memory">

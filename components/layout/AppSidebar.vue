@@ -26,18 +26,15 @@ const user = {
 
 <template>
   <aside class="sidebar">
-    <div class="brand">
+    <NuxtLink to="/" class="brand">
       <div class="brand-logo" aria-hidden="true">
-        <svg viewBox="0 0 32 32" width="30" height="30">
-          <path d="M16 4 28 26H4Z" fill="var(--primary)" />
-          <path d="M16 14 22 26H10Z" fill="#0b1e3f" />
-        </svg>
+        <svg width="28" height="28" viewBox="12 26 103 108" fill="none"><defs><linearGradient id="dpl-side" x1="20" y1="20" x2="115" y2="135" gradientUnits="userSpaceOnUse"><stop stop-color="#3B82F6"/><stop offset="1" stop-color="#06B6D4"/></linearGradient></defs><path d="M28 35C24.7 33.1 20.5 35.5 20.5 39.3V61.1C20.5 63.5 21.8 65.7 23.9 66.9L67.4 92.1C70.7 94 74.8 91.6 74.8 87.8V66C74.8 63.6 73.6 61.4 71.5 60.2L28 35Z" fill="url(#dpl-side)"/><path d="M28 125C24.7 126.9 20.5 124.5 20.5 120.7V98.9C20.5 96.5 21.8 94.3 23.9 93.1L67.4 67.9C70.7 66 74.8 68.4 74.8 72.2V94C74.8 96.4 73.6 98.6 71.5 99.8L28 125Z" fill="url(#dpl-side)" opacity="0.92"/><path d="M67.4 92.1L103.2 71.4C106.5 69.5 106.5 64.7 103.2 62.8L67.4 42.1C64.1 40.2 60 42.6 60 46.4V87.8C60 91.6 64.1 94 67.4 92.1Z" fill="url(#dpl-side)"/></svg>
       </div>
       <div>
         <p class="brand-name">Deplay</p>
         <p class="brand-tag">Ship your ideas</p>
       </div>
-    </div>
+    </NuxtLink>
 
     <nav class="nav" aria-label="Main">
       <NuxtLink
@@ -90,8 +87,6 @@ const user = {
   place-items: center;
   width: 36px;
   height: 36px;
-  border-radius: 10px;
-  background: var(--primary-soft);
 }
 
 .brand-name {
