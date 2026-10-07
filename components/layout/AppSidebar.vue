@@ -17,10 +17,40 @@ const navigation: NavItem[] = [
   { label: 'Settings', icon: 'settings', to: '/settings' },
 ]
 
-const user = {
-  name: 'Fabrich Vohanson',
-  role: 'Developer',
-  initials: 'FV',
+// Compte Clerk connecté : nom complet (ou début de l'e-mail), e-mail et initiales
+const { user: clerkUser } = useUser()
+
+const email = computed(() => clerkUser.value?.primaryEmailAddress?.emailAddress ?? '')
+const displayName = computed(() => clerkUser.value?.fullName || email.value.split('@')[0] || 'Account')
+const initials = computed(() => {
+  const words = displayName.value.split(/[\s._-]+/).filter(Boolean)
+  const letters = words.length > 1 ? words[0][0] + words[words.length - 1][0] : displayName.value.slice(0, 2)
+  return letters.toUpperCase()
+})
+
+// Menu du compte : s'ouvre au clic, se ferme au clic ailleurs, sur Échap ou après un choix
+const clerk = useClerk()
+const menuOpen = ref(false)
+const accountRef = ref<HTMLElement | null>(null)
+
+function onDocumentClick(event: MouseEvent) {
+  if (menuOpen.value && !accountRef.value?.contains(event.target as Node)) menuOpen.value = false
+}
+function onKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') menuOpen.value = false
+}
+onMounted(() => {
+  document.addEventListener('click', onDocumentClick)
+  document.addEventListener('keydown', onKeydown)
+})
+onBeforeUnmount(() => {
+  document.removeEventListener('click', onDocumentClick)
+  document.removeEventListener('keydown', onKeydown)
+})
+
+async function signOut() {
+  menuOpen.value = false
+  await clerk.value?.signOut({ redirectUrl: '/sign-in' })
 }
 </script>
 
@@ -51,13 +81,29 @@ const user = {
 
     <SidebarPromo />
 
-    <div class="user">
-      <div class="avatar" aria-hidden="true">{{ user.initials }}</div>
-      <div class="user-info">
-        <p class="user-name">{{ user.name }}</p>
-        <p class="user-role">{{ user.role }}</p>
-      </div>
-      <AppIcon name="arrowUp" :size="16" class="user-chevron" />
+    <div ref="accountRef" class="account">
+      <Transition name="menu">
+        <div v-if="menuOpen" class="menu" role="menu">
+          <NuxtLink to="/settings" class="menu-item" role="menuitem" @click="menuOpen = false">
+            <AppIcon name="settings" :size="16" />
+            Settings
+          </NuxtLink>
+          <button type="button" class="menu-item danger" role="menuitem" @click="signOut">
+            <AppIcon name="logout" :size="16" />
+            Sign out
+          </button>
+        </div>
+      </Transition>
+
+      <button type="button" class="user" :class="{ open: menuOpen }" aria-haspopup="menu" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
+        <img v-if="clerkUser?.imageUrl" :src="clerkUser.imageUrl" class="avatar avatar-img" alt="" referrerpolicy="no-referrer">
+        <div v-else class="avatar" aria-hidden="true">{{ initials }}</div>
+        <div class="user-info">
+          <p class="user-name">{{ displayName }}</p>
+          <p class="user-role">{{ email }}</p>
+        </div>
+        <AppIcon name="arrowUp" :size="16" class="user-chevron" />
+      </button>
     </div>
   </aside>
 </template>
@@ -127,13 +173,78 @@ const user = {
   background: var(--primary-soft);
 }
 
+.account {
+  position: relative;
+  border-top: 1px solid var(--border);
+}
+
 .user {
-  margin-top: 0;
+  width: 100%;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 8px 0;
-  border-top: 1px solid var(--border);
+  margin-top: 8px;
+  padding: 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.user:hover,
+.user.open {
+  background: var(--card-hover);
+}
+
+.menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 6px);
+  padding: 6px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 18px 40px -16px rgba(0, 0, 0, 0.7);
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-item:hover {
+  background: var(--card-hover);
+}
+
+.menu-item.danger {
+  color: #f87171;
+}
+
+.menu-enter-active,
+.menu-leave-active {
+  transition: opacity 0.14s ease, transform 0.14s ease;
+}
+
+.menu-enter-from,
+.menu-leave-to {
+  opacity: 0;
+  transform: translateY(4px);
 }
 
 .avatar {
@@ -153,9 +264,19 @@ const user = {
   min-width: 0;
 }
 
+.avatar-img {
+  object-fit: cover;
+}
+
+.user-name,
+.user-role {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .user-name {
   font-weight: 600;
-  white-space: nowrap;
 }
 
 .user-role {
@@ -166,6 +287,11 @@ const user = {
 .user-chevron {
   color: var(--muted);
   transform: rotate(180deg);
+  transition: transform 0.18s ease;
+}
+
+.user.open .user-chevron {
+  transform: rotate(0deg);
 }
 
 @media (max-width: 900px) {
