@@ -46,14 +46,17 @@ watch(isSignedIn, (signedIn) => {
   if (signedIn) load()
 })
 
-// Visiteur non connecté : le serveur sert la landing sur « / » (server/middleware/landing.ts).
-// On arrive ici seulement par une navigation interne (ex. après déconnexion) : on recharge « / »
-// pour que le serveur la renvoie. Garde-fou : si le rechargement ne suffit pas, page de connexion.
+// Visiteur non connecté : en production la landing est sur un autre domaine, la plateforme renvoie vers la connexion.
+// En développement, le serveur sert la landing sur « / » (server/middleware/landing.ts) : on la recharge.
 const RELOAD_KEY = 'deplay:landing-reload'
 watch(
   () => isLoaded.value && !isSignedIn.value,
   (signedOut) => {
     if (!signedOut || !import.meta.client) return
+    if (!import.meta.dev) {
+      navigateTo('/sign-in', { replace: true })
+      return
+    }
     let last = 0
     try { last = Number(sessionStorage.getItem(RELOAD_KEY) || 0) } catch {}
     if (Date.now() - last < 10_000) {

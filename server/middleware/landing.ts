@@ -2,6 +2,9 @@ import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import type { H3Event } from 'h3'
 
+// En production, le site public est servi par nginx sur deplay.fabrich.site (deploy/nginx/deplay-landing.conf)
+// et l'application vit sur ondeplay.fabrich.site : ce middleware ne sert donc que le développement local.
+//
 // Site public statique (public/landing-hero-concept) servi sous des adresses propres :
 // « / » (page d'accueil, visiteurs non connectés seulement), « /runtimes » et « /docs »
 // (toujours accessibles). La balise <base> fait pointer les chemins relatifs de chaque page
@@ -38,7 +41,7 @@ function isSignedIn(event: H3Event): boolean {
 }
 
 export default defineEventHandler(async (event) => {
-  if (event.method !== 'GET') return
+  if (!import.meta.dev || event.method !== 'GET') return
 
   const route = ROUTES[event.path.split('?')[0]]
   if (!route) return
