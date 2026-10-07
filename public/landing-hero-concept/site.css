@@ -36,8 +36,19 @@ nav{display:flex;align-items:center;gap:28px}
 main{max-width:1120px;margin:0 auto;padding:0 32px 100px}
 
 /* titre façon pochoir : le texte en relief, doublé d'un filet derrière */
+/* groupe statique de trois cartes, dans la zone droite du hero — décoratif, pas un carrousel */
+.hero-cards{position:absolute;right:0;top:50%;transform:translateY(-50%);width:500px;height:300px;z-index:0}
+.hero-cards .t-card{position:absolute;width:210px;margin:0}
+.hero-cards .t-card.mini{padding:16px 18px 14px}
+.hero-cards .t-card.mini blockquote{font-size:12.5px;line-height:1.5}
+.hero-cards .t-card.active{z-index:1}
+.spark{position:absolute;color:var(--subtle);font-size:18px;font-weight:300;pointer-events:none}
+.spark.s1{top:4px;left:230px}
+.spark.s2{bottom:6px;right:20px}
+@media (max-width:1040px){.hero-cards{display:none}}
+
 .stencil{position:relative;display:inline-block;font-weight:800;line-height:0.86;letter-spacing:-0.02em}
-.stencil .behind{position:absolute;inset:0;color:transparent;-webkit-text-stroke:1px rgba(242,242,242,0.25);z-index:0;transform:translate(6px,6px)}
+.stencil .behind{position:absolute;inset:0;color:transparent;-webkit-text-stroke:1px #2564eba6;z-index:0;transform:translate(6px,6px)}
 .stencil .front{position:relative;z-index:1;color:var(--text)}
 
 .kicker{font-family:var(--mono);font-size:12px;letter-spacing:0.1em;color:var(--muted);text-transform:uppercase}
@@ -79,6 +90,36 @@ tbody tr:last-child td{border-bottom:0}
 .pill .dot{width:6px;height:6px;border-radius:50%}
 .pill.ok{color:var(--ok);border-color:rgba(34,199,138,0.3)} .pill.ok .dot{background:var(--ok)}
 .pill.warn{color:var(--warn);border-color:rgba(245,158,11,0.3)} .pill.warn .dot{background:var(--warn)}
+
+/* carte d'avis : utilisée par le groupe statique du hero (.hero-cards). Le carrousel qui les
+   affichait plus bas sur la page a été retiré ; ces styles restent pour cet usage. */
+.t-card{
+  flex:0 0 auto;width:300px;padding:20px 22px 18px;border-radius:12px;
+  background:var(--card);border:1px solid var(--border);
+  transition:opacity .3s ease,transform .3s ease;
+}
+.t-card.side{opacity:.4;transform:scale(0.92)}
+.t-card.active{opacity:1;transform:scale(1);border-color:#2a2a2a;box-shadow:0 24px 50px -24px rgba(0,0,0,0.6)}
+.t-card .head{display:flex;align-items:center;gap:10px}
+.t-avatar{width:34px;height:34px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:700}
+.t-card .who{flex:1;min-width:0}
+.t-card .name{font-size:13.5px;font-weight:600}
+.t-card .role{font-size:11px;color:var(--muted)}
+.t-badge{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;letter-spacing:0.04em;padding:3px 7px;border-radius:999px;border:1px solid rgba(34,199,138,0.3);color:var(--ok);flex-shrink:0}
+.t-badge .dot{width:5px;height:5px;border-radius:50%;background:var(--ok)}
+.t-card blockquote{margin:18px 0 0;font-size:13.5px;line-height:1.55;color:var(--text)}
+.t-deploy{
+  margin-top:16px;display:flex;align-items:center;justify-content:space-between;
+  padding:9px 11px;border:1px solid var(--border);border-radius:7px;font-family:var(--mono);font-size:10.5px;color:var(--muted);
+}
+.t-deploy .ok{color:var(--ok);display:flex;align-items:center;gap:5px}
+.t-deploy .ok .dot{width:5px;height:5px;border-radius:50%;background:var(--ok)}
+
+/* bandeau de clôture, juste avant le pied de page */
+.cta-band{margin-top:7rem;padding:56px 32px;text-align:center;border:1px solid var(--border);border-radius:16px;background:var(--card)}
+.cta-band h2{font-size:28px;font-weight:800;letter-spacing:-0.01em;margin:0 0 10px}
+.cta-band p{font-size:14px;color:var(--muted);margin:0 0 26px}
+.cta-band .nav-cta{display:inline-flex}
 
 .feature-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:36px}
 .feature-card .ico{height:150px;display:flex;align-items:center;margin-bottom:22px}

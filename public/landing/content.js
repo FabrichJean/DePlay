@@ -85,7 +85,9 @@ window.SITE_CONTENT = {
     ]
   },
 
-  /* À VALIDER : avis et chiffre inventés, à remplacer par un vrai client avant publication */
+  /* À VALIDER : avis et chiffres inventés, à remplacer par de vrais clients avant publication.
+     `testimonial` = testimonials[0], gardé pour le premier rendu (scroll) ; `testimonials` est
+     la liste complète que app.js fait défiler une fois la scène révélée (voir scène 8). */
   testimonial: {
     kicker: 'FREELANCE — HEURES GAGNÉES PAR SEMAINE',
     figure: '−4',
@@ -93,6 +95,29 @@ window.SITE_CONTENT = {
     quote: 'Avant, chaque mise en ligne me coûtait une soirée de configuration. Maintenant je pousse mon code et j’envoie le lien au client dans la foulée.',
     author: 'NADIA R. — DÉVELOPPEUSE FREELANCE'
   },
+  testimonials: [
+    {
+      kicker: 'FREELANCE — HEURES GAGNÉES PAR SEMAINE',
+      figure: '−4',
+      unit: 'h',
+      quote: 'Avant, chaque mise en ligne me coûtait une soirée de configuration. Maintenant je pousse mon code et j’envoie le lien au client dans la foulée.',
+      author: 'NADIA R. — DÉVELOPPEUSE FREELANCE'
+    },
+    {
+      kicker: 'INDÉPENDANT — ESPACE SUIVI AU MO PRÈS',
+      figure: '700',
+      unit: 'Mo',
+      quote: 'Je sais toujours combien d’espace il me reste, sans avoir à deviner ni à surveiller une facture.',
+      author: 'KARIM B. — INDÉPENDANT'
+    },
+    {
+      kicker: 'API PYTHON — AUCUN SERVEUR CONFIGURÉ',
+      figure: '0',
+      unit: '',
+      quote: 'Mon API tourne avec ffmpeg sans que j’aie eu à toucher le moindre serveur.',
+      author: 'LÉA M. — DÉVELOPPEUSE'
+    }
+  ],
 
   objections: {
     items: ['Pas de serveur à configurer.', 'Pas de pipeline à écrire.', 'Pas de facture surprise.'],

@@ -460,6 +460,9 @@ body.is-ready .fl img { transform: scale(1); }
   margin-bottom: 6px;
   opacity: 0; will-change: opacity, transform;
 }
+/* enveloppe de rotation (voir index.html) : seule la bascule entre témoignages l'anime */
+.q-rotate { transition: opacity 0.4s ease; }
+.q-rotate.is-out { opacity: 0; }
 .q-block { position: relative; }
 .q-text {
   font-size: clamp(25px, 3vw, 46px);

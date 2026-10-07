@@ -489,6 +489,56 @@
     }
   });
 
+  /* Rotation entre plusieurs témoignages (content.js : SITE_CONTENT.testimonials), une fois la
+     scène révélée par le scroll (p proche de 1). N'anime jamais l'opacité propre de qText / qName /
+     qCtx / bigFigure — déjà pilotée ci-dessus par le scroll — seulement celle de l'enveloppe
+     #qRotate, qui la multiplie visuellement : les deux ne se marchent jamais dessus. */
+  const TESTIMONIALS = (window.SITE_CONTENT && window.SITE_CONTENT.testimonials) || [];
+  if (TESTIMONIALS.length > 1) {
+    const qRotate = $('#qRotate');
+    const figPre = $('#figPre'), figUnit = $('#figUnit');
+    let tIdx = 0, tTimer = null, tRevealed = false;
+
+    function applyTestimonial(item) {
+      qText.textContent = item.quote;
+      qName.textContent = item.author;
+      qCtx.textContent = item.kicker;
+      const raw = String(item.figure || '').trim();
+      const m = raw.match(/^([^\d.,+-]*[+−-]?)\s*(-?[\d.,]+)/);
+      const ok = !!m && isFinite(parseFloat(m[2].replace(',', '.')));
+      bigFigure.style.opacity = ok ? '1' : '0';
+      if (ok) {
+        figPre.textContent = m[1] || '';
+        figVal.textContent = m[2];
+        figUnit.textContent = item.unit || '';
+      }
+    }
+
+    function nextTestimonial() {
+      tIdx = (tIdx + 1) % TESTIMONIALS.length;
+      qRotate.classList.add('is-out');
+      setTimeout(() => {
+        applyTestimonial(TESTIMONIALS[tIdx]);
+        qRotate.classList.remove('is-out');
+      }, 420);
+    }
+
+    addScene('.s-quote', (p) => {
+      if (p >= 0.97 && !tRevealed) {
+        tRevealed = true;
+        if (!tTimer) tTimer = setInterval(nextTestimonial, 6000);
+      } else if (p < 0.5 && tRevealed) {
+        // on a défilé en arrière avant la fin de la révélation : on arrête et on repart du premier avis
+        tRevealed = false;
+        clearInterval(tTimer);
+        tTimer = null;
+        tIdx = 0;
+        qRotate.classList.remove('is-out');
+        applyTestimonial(TESTIMONIALS[0]);
+      }
+    });
+  }
+
   /* ─── SCÈNE 6 · FINALE ─── */
   const fsEls = [$('#fs1'), $('#fs2'), $('#fs3'), $('#fs4')];
   const pillDraw = makeDraw($('#pillPath'));

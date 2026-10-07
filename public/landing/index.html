@@ -124,15 +124,19 @@
       <div class="pin">
         <div class="q-stack">
           <span class="q-glyph" aria-hidden="true">“</span>
-          <blockquote class="q-block">
-            <p class="q-text" id="quoteText"></p>
-          </blockquote>
-          <div class="q-sign">
-            <span class="q-rule" aria-hidden="true"></span>
-            <div class="q-sign-row" id="quoteAuthorWrap">
-              <p class="q-name" id="quoteAuthor"></p>
-              <p class="q-ctx mono ash" id="figKicker"></p>
-              <p class="q-fig" id="bigFigure"><span class="fig-pre" id="figPre"></span><span class="fig-val" id="figVal">0</span><span class="fig-unit" id="figUnit"></span></p>
+          <!-- Enveloppe ajoutée pour la rotation entre plusieurs témoignages (scène 8, app.js) :
+               elle seule s'estompe au changement d'avis ; le filet (.q-rule) reste tracé. -->
+          <div class="q-rotate" id="qRotate">
+            <blockquote class="q-block">
+              <p class="q-text" id="quoteText"></p>
+            </blockquote>
+            <div class="q-sign">
+              <span class="q-rule" aria-hidden="true"></span>
+              <div class="q-sign-row" id="quoteAuthorWrap">
+                <p class="q-name" id="quoteAuthor"></p>
+                <p class="q-ctx mono ash" id="figKicker"></p>
+                <p class="q-fig" id="bigFigure"><span class="fig-pre" id="figPre"></span><span class="fig-val" id="figVal">0</span><span class="fig-unit" id="figUnit"></span></p>
+              </div>
             </div>
           </div>
         </div>
