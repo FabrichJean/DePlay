@@ -58,8 +58,22 @@ window.DEPLAY_I18N = {
 
     'footer.doc': 'Documentation',
 
-    'rt.title': 'Runtimes',
-    'rt.lede': 'A Deplay web service runs in one of these two runtimes. The image, install command and start command are the ones actually used by the worker.',
+    'rt.meta.title': 'Runtimes — Deplay',
+    'rt.sub': 'Pre-configured <b>runtimes for your web services</b>',
+    'rt.lede': 'A Deplay web service runs in one of these runtimes. The image, install command and start command shown here are the ones actually used by the worker.',
+    'rt.side.note': "Every value on this page is read from the worker's configuration.",
+    'rt.kicker': 'Active runtime',
+    'rt.preview': 'Deployment preview',
+    'rt.preview.listen': 'listening on $PORT',
+    'rt.preview.live': 'live at &lt;name&gt;.fabrich.site',
+    'rt.quick': 'Quick commands',
+    'rt.hint.install': 'Install dependencies',
+    'rt.hint.start': 'Start command (editable per project)',
+    'rt.infra': 'Infrastructure',
+    'rt.python.desc': 'For APIs, data processing and audio/video work.',
+    'rt.installrun': 'Install &amp; run',
+    'rt.details': 'Runtime details',
+    'rt.env.hint': 'Set automatically in the container.',
     'rt.node.title': 'Node.js',
     'rt.node.bullet1': 'For an Express, Fastify, Hono API, or any Node server listening on the <code>PORT</code> variable.',
     'rt.node.bullet2': 'The repository folder is mounted as-is in the container, nothing is copied beforehand.',
@@ -80,6 +94,7 @@ window.DEPLAY_I18N = {
     'rt.docker.meta.status': 'Status',
     'rt.docker.meta.soon': 'In development',
     'footer.home': 'Home',
+    'docs.meta.title': 'Documentation — Deplay',
 
     'docs.title': 'Documentation',
     'docs.lede': 'How Deplay builds, publishes and monitors your sites and APIs.',
@@ -160,8 +175,22 @@ window.DEPLAY_I18N = {
 
     'footer.doc': 'Documentation',
 
-    'rt.title': 'Runtimes',
-    'rt.lede': "Un web service Deplay tourne dans l'un de ces deux runtimes. L'image, la commande d'installation et la commande de démarrage sont celles réellement utilisées par le worker.",
+    'rt.meta.title': 'Runtimes — Deplay',
+    'rt.sub': 'Runtimes <b>préconfigurés pour vos web services</b>',
+    'rt.lede': "Un web service Deplay tourne dans l'un de ces runtimes. L'image, la commande d'installation et la commande de démarrage affichées ici sont celles réellement utilisées par le worker.",
+    'rt.side.note': 'Chaque valeur de cette page provient de la configuration du worker.',
+    'rt.kicker': 'Runtime actif',
+    'rt.preview': 'Aperçu du déploiement',
+    'rt.preview.listen': 'écoute sur $PORT',
+    'rt.preview.live': 'en ligne sur &lt;nom&gt;.fabrich.site',
+    'rt.quick': 'Commandes rapides',
+    'rt.hint.install': 'Installe les dépendances',
+    'rt.hint.start': 'Commande de démarrage (modifiable par projet)',
+    'rt.infra': 'Infrastructure',
+    'rt.python.desc': 'Pour les API, le traitement de données et l’audio/vidéo.',
+    'rt.installrun': 'Installation &amp; lancement',
+    'rt.details': 'Détails du runtime',
+    'rt.env.hint': 'Définies automatiquement dans le conteneur.',
     'rt.node.title': 'Node.js',
     'rt.node.bullet1': 'Pour une API Express, Fastify, Hono, ou tout serveur Node qui écoute sur la variable <code>PORT</code>.',
     'rt.node.bullet2': 'Le dossier du dépôt est monté tel quel dans le conteneur, rien n’est copié au préalable.',
@@ -182,6 +211,7 @@ window.DEPLAY_I18N = {
     'rt.docker.meta.status': 'Statut',
     'rt.docker.meta.soon': 'En développement',
     'footer.home': 'Accueil',
+    'docs.meta.title': 'Documentation — Deplay',
 
     'docs.title': 'Documentation',
     'docs.lede': 'Comment Deplay construit, publie et surveille vos sites et vos API.',
@@ -218,7 +248,7 @@ window.DEPLAY_I18N = {
   function apply(lang) {
     var dict = window.DEPLAY_I18N[lang] || window.DEPLAY_I18N.en
     document.documentElement.lang = lang
-    var title = dict['meta.title']
+    var title = dict[document.body.getAttribute('data-title-key') || 'meta.title']
     if (title) document.title = title
     var desc = document.querySelector('meta[name="description"]')
     if (desc && dict['meta.desc']) desc.setAttribute('content', dict['meta.desc'])

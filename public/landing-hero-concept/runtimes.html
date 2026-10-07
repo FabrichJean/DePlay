@@ -4,24 +4,145 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Runtimes — Deplay</title>
-<meta name="description" content="Node.js and Python: the two runtimes available for Deplay web services, with their real commands.">
+<meta name="description" content="Node.js and Python: the runtimes available for Deplay web services, with their real images and commands.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="site.css">
 <style>
-  .rt{display:grid;grid-template-columns:1fr 280px;gap:48px;padding:40px 0;border-bottom:1px solid var(--border)}
-  .rt:last-of-type{border-bottom:0}
-  .rt h2{font-size:26px;font-weight:800;letter-spacing:-0.01em;margin:0 0 10px}
-  .rt .pill{margin-bottom:18px}
-  .rt ul{margin:18px 0 0;padding-left:18px;color:var(--muted);font-size:13.5px;line-height:1.7}
-  .meta dt{font-family:var(--mono);font-size:11px;letter-spacing:0.08em;color:var(--subtle);text-transform:uppercase;margin-top:18px}
-  .meta dt:first-child{margin-top:0}
-  .meta dd{margin:4px 0 0;font-family:var(--mono);font-size:13px;word-break:break-all}
-  @media (max-width:760px){ .rt{grid-template-columns:1fr} }
+  :root{--line:#1a1c20;--soft:#c9ccd3}
+  main{padding-bottom:0}
+
+  .rh{display:grid;grid-template-columns:1fr 330px;align-items:center;gap:40px;padding:64px 0 52px}
+  .rh h1{margin:0;display:flex;align-items:flex-end;gap:18px;font-size:clamp(46px,9vw,108px);font-weight:800;line-height:0.86}
+  .rh-sub{margin:20px 0 0;font-family:var(--mono);font-size:12.5px;letter-spacing:0.32em;text-transform:uppercase;color:var(--subtle)}
+  .rh-sub b{font-weight:400;color:var(--soft)}
+  .rh-lede{margin:0;padding-left:36px;border-left:1px solid var(--line);font-family:var(--mono);font-size:12.5px;line-height:1.85;color:var(--muted)}
+
+  .shell{display:grid;grid-template-columns:200px 1fr;border-top:1px solid var(--line)}
+  .side{position:sticky;top:24px;align-self:start;display:flex;flex-direction:column;padding:24px 22px 24px 0}
+  .shell > div{min-width:0;border-left:1px solid var(--line)}
+  .side a.rt-link{display:flex;align-items:center;gap:13px;padding:13px 14px;border-left:2px solid transparent;color:var(--muted);transition:background .15s,color .15s,border-color .15s}
+  .side a.rt-link:hover{color:var(--text);background:rgba(255,255,255,0.02)}
+  .side a.rt-link.is-active{color:var(--text);border-color:var(--accent);background:linear-gradient(90deg,rgba(59,130,246,0.1),transparent)}
+  .side a.rt-link.is-active svg{color:var(--accent)}
+  .side a.rt-link strong{display:block;font-size:12.5px;font-weight:500;font-family:var(--mono)}
+  .side a.rt-link span{display:block;margin-top:3px;font-family:var(--mono);font-size:10.5px;color:var(--subtle)}
+  .side a.rt-link.soon span{color:var(--warn)}
+  .side-note{margin:22px 0 0;padding-top:18px;border-top:1px solid var(--line);font-family:var(--mono);font-size:10.5px;line-height:1.7;color:var(--subtle)}
+
+  .rt-sec{padding:36px 0 40px 32px;border-bottom:1px solid var(--line);scroll-margin-top:12px}
+  .rt-sec:last-child{border-bottom:0}
+  .k{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:var(--soft)}
+  .k svg{color:var(--muted);flex-shrink:0}
+
+  .feat-top{display:grid;grid-template-columns:1fr 300px;gap:24px;align-items:start}
+  .rt-id{display:flex;align-items:center;gap:26px;margin-top:26px}
+  .rt-id .logo{color:var(--text);flex-shrink:0}
+  .rt-id h2{margin:0;font-size:46px;font-weight:800;letter-spacing:-0.03em;line-height:0.98}
+  .rt-id h2 small{display:block;font-size:inherit}
+  .rt-id .ver{display:block;margin-top:10px;font-family:var(--mono);font-size:15px;color:var(--soft);font-weight:400;letter-spacing:0}
+  .rt-desc{margin:18px 0 0;max-width:430px;font-family:var(--mono);font-size:12px;line-height:1.75;color:var(--muted)}
+  .rt-desc code{color:var(--soft)}
+  .status{display:inline-flex;align-items:center;gap:8px;padding-bottom:6px;border-bottom:1px solid rgba(34,199,138,0.45);font-family:var(--mono);font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ok)}
+  .status i{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px rgba(34,199,138,0.7)}
+  .status.soon{color:var(--warn);border-color:rgba(245,158,11,0.45)}
+  .status.soon i{background:var(--warn);box-shadow:0 0 8px rgba(245,158,11,0.7)}
+  .deco{position:relative;display:flex;justify-content:flex-end;gap:26px}
+  .deco svg{opacity:.9}
+  .deco-tags{padding-left:18px;border-left:1px solid var(--line);font-family:var(--mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--subtle);line-height:2}
+  .deco-tags b{display:block;margin-bottom:8px;font-size:12px;font-weight:500;color:var(--soft)}
+
+  .feat-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr) minmax(0,0.75fr);gap:0;margin-top:30px}
+  .feat-grid > div{padding:0 26px}
+  .feat-grid > div:first-child{padding-left:0}
+  .feat-grid > div + div{border-left:1px solid var(--line)}
+
+  .term{border:1px solid #23262c;border-radius:6px;background:#07080a;overflow:hidden}
+  .term-bar{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--subtle)}
+  .term-bar .dot{width:6px;height:6px;border-radius:50%;background:var(--ok)}
+  .term-bar .tag{margin-left:auto;letter-spacing:0;text-transform:none;color:var(--soft)}
+  .term-body{padding:16px 18px 18px 26px;font-family:var(--mono);font-size:12px;line-height:2}
+  .term-body .c{color:var(--text)}
+  .term-body .c .p{color:var(--subtle);margin-right:8px}
+  .term-body .l{color:var(--muted)}
+  .term-body .l::before{content:'›';margin-right:10px;color:var(--subtle)}
+  .term-body .ok{margin-top:6px;color:var(--ok)}
+  .term-body .ok::before{content:'›';margin-right:10px;color:var(--subtle)}
+
+  .block + .block{margin-top:26px}
+  .cmd{position:relative;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding:13px 14px;border:1px solid #23262c;border-radius:5px;background:#08090b;font-family:var(--mono);font-size:12px;color:var(--text)}
+  .cmd code{min-width:0;overflow-wrap:anywhere}
+  .cmd .p{color:var(--subtle);margin-right:8px}
+  .hint{margin:8px 0 0;font-size:11px;color:var(--subtle)}
+  .copy{all:unset;cursor:pointer;flex-shrink:0;display:grid;place-items:center;width:26px;height:26px;border-radius:5px;color:var(--subtle);transition:color .15s,background .15s}
+  .copy:hover{color:var(--text);background:rgba(255,255,255,0.05)}
+  .copy.done{color:var(--ok)}
+  .env{margin-top:14px;padding:12px 14px;border:1px solid #23262c;border-radius:5px;background:#08090b;font-family:var(--mono);font-size:11.5px}
+  .env div{display:flex;justify-content:space-between;gap:12px;padding:4px 0}
+  .env span:first-child{color:var(--text)}
+  .env span:last-child{color:var(--accent)}
+
+  .spec{display:flex;flex-direction:column;gap:22px;margin-top:18px}
+  .spec-row{display:flex;gap:14px;align-items:flex-start}
+  .spec-row svg{color:var(--muted);flex-shrink:0;margin-top:2px}
+  .spec-row dt{font-family:var(--mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--subtle)}
+  .spec-row dd{margin:5px 0 0;font-family:var(--mono);font-size:12px;color:var(--text);overflow-wrap:anywhere;line-height:1.55}
+  .spec-pair{display:flex;gap:28px}
+
+  .notes{margin:18px 0 0;padding:0;list-style:none;font-size:12px;line-height:1.6;color:var(--muted)}
+  .notes li{position:relative;padding-left:16px}
+  .notes li + li{margin-top:9px}
+  .notes li::before{content:'';position:absolute;left:0;top:8px;width:4px;height:4px;border-radius:50%;background:var(--subtle)}
+  .notes code{font-family:var(--mono);font-size:11px;color:var(--soft)}
+
+  .py-head{display:flex;align-items:center;gap:20px 40px;flex-wrap:wrap}
+  .py-head .rt-id{margin-top:0;gap:20px}
+  .py-head .rt-id h2{font-size:40px}
+  .py-head .rt-desc{margin:0;max-width:300px;padding-left:40px;border-left:1px solid var(--line)}
+  .py-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin-top:32px}
+  .py-grid > div{padding:0 26px}
+  .py-grid > div:first-child{padding-left:0}
+  .py-grid > div + div{border-left:1px solid var(--line)}
+  .env div{flex-wrap:wrap}
+  .env span{overflow-wrap:anywhere}
+
+  .soon-row{display:flex;align-items:center;gap:26px;padding:22px 24px;border:1px dashed #2a2d33;border-radius:6px}
+  .soon-row .logo{color:var(--muted);flex-shrink:0}
+  .soon-row h2{margin:0;font-size:22px;font-weight:700;letter-spacing:-0.01em}
+  .soon-row p{margin:6px 0 0;font-family:var(--mono);font-size:12px;line-height:1.7;color:var(--muted);max-width:560px}
+  .soon-row .status{margin-left:auto;flex-shrink:0}
+
+  @media (max-width:1080px){
+    .feat-grid{grid-template-columns:1fr 1fr}
+    .feat-grid > div:first-child{grid-column:1 / -1;padding:0 0 26px}
+    .feat-grid > div:nth-child(2){padding-left:0;border-left:0}
+    .py-grid{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:28px}
+    .py-grid > div:nth-child(3){grid-column:1 / -1;padding-left:0;border-left:0}
+    .deco svg{display:none}
+  }
+  @media (max-width:820px){
+    .rh{grid-template-columns:1fr;gap:26px;padding:44px 0 36px}
+    .rh-lede{padding-left:0;border-left:0}
+    .shell{grid-template-columns:1fr}
+    .side{position:static;flex-direction:row;flex-wrap:wrap;gap:4px;padding:14px 0;border-bottom:1px solid var(--line)}
+    .shell > div{border-left:0}
+    .side-note{display:none}
+    .rt-sec{padding-left:0}
+    .feat-top{grid-template-columns:1fr}
+    .deco{justify-content:flex-start}
+  }
+  @media (max-width:620px){
+    .feat-grid,.py-grid{grid-template-columns:minmax(0,1fr)}
+    .py-head .rt-desc{padding-left:0;border-left:0}
+    .feat-grid > div,.py-grid > div{padding:0 0 24px!important;border-left:0!important}
+    .rt-id h2{font-size:38px}
+    .soon-row{flex-wrap:wrap}
+    .soon-row .status{margin-left:0}
+  }
 </style>
 </head>
-<body>
+<body data-title-key="rt.meta.title">
   <header>
     <div class="brand">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M5 3 L21 12 L5 21 Z" fill="#fff"/></svg>
@@ -47,68 +168,148 @@
   </header>
 
   <main>
-    <section style="padding:48px 0 0">
-      <h1 style="font-size:clamp(32px,5vw,48px);font-weight:800;letter-spacing:-0.02em;margin:0" data-i18n="rt.title">Runtimes</h1>
-      <p class="lede" style="margin-top:12px" data-i18n="rt.lede">
-        A Deplay web service runs in one of these two runtimes. The image, install command
-        and start command are the ones actually used by the worker.
-      </p>
+    <section class="rh">
+      <div>
+        <h1><span class="stencil"><span class="behind" aria-hidden="true">RUNTIMES</span><span class="front">RUNTIMES</span></span></h1>
+        <p class="rh-sub" data-i18n="rt.sub">Pre-configured <b>runtimes for your web services</b></p>
+      </div>
+      <p class="rh-lede" data-i18n="rt.lede">A Deplay web service runs in one of these runtimes. The image, install command and start command shown here are the ones actually used by the worker.</p>
     </section>
 
-    <div class="rt">
-      <div>
-        <h2 data-i18n="rt.node.title">Node.js</h2>
-        <span class="pill ok"><span class="dot"></span>node:22-slim</span>
-        <div class="cmdbox">
-          <span><span class="prompt">$</span>npm install</span>
-        </div>
-        <ul>
-          <li data-i18n="rt.node.bullet1">For an Express, Fastify, Hono API, or any Node server listening on the <code>PORT</code> variable.</li>
-          <li data-i18n="rt.node.bullet2">The repository folder is mounted as-is in the container, nothing is copied beforehand.</li>
-          <li data-i18n="rt.node.bullet3">Restarts automatically if the process stops.</li>
-        </ul>
-      </div>
-      <dl class="meta">
-        <dt data-i18n="rt.node.meta.image">Image</dt><dd>docker.io/library/node:22-slim</dd>
-        <dt data-i18n="rt.node.meta.install">Install</dt><dd>npm install</dd>
-        <dt data-i18n="rt.node.meta.start">Start</dt><dd>node server.js</dd>
-        <dt data-i18n="rt.node.meta.memory">Memory</dt><dd>1 GB</dd>
-        <dt data-i18n="rt.node.meta.cpu">CPU</dt><dd>1</dd>
-      </dl>
-    </div>
+    <div class="shell">
+      <aside class="side">
+        <a class="rt-link is-active" href="/runtimes#node">
+          <svg width="26" height="26" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 3 35 11.5v17L20 37 5 28.5v-17L20 3z"/><text x="20" y="25" text-anchor="middle" font-family="Inter,sans-serif" font-size="12" font-weight="700" fill="currentColor" stroke="none">JS</text></svg>
+          <div><strong>Node.js</strong><span>22</span></div>
+        </a>
+        <a class="rt-link" href="/runtimes#python">
+          <svg width="26" height="26" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20 5c-6 0-7 2.4-7 5v4h7.5v1.5H9.5C6.5 15.5 5 17.5 5 21.5s1.5 6 4.5 6H13v-4.2c0-2.6 2.2-4.8 4.8-4.8h6.4c2.2 0 3.8-1.6 3.8-3.8V10c0-2.6-2-5-8-5z"/><path d="M20 35c6 0 7-2.4 7-5v-4h-7.5v-1.5h11c3 0 4.5-2 4.5-6s-1.5-6-4.5-6H27v4.2c0 2.6-2.2 4.8-4.8 4.8h-6.4c-2.2 0-3.8 1.6-3.8 3.8V30c0 2.6 2 5 8 5z"/></svg>
+          <div><strong>Python</strong><span>3.12 + ffmpeg</span></div>
+        </a>
+        <a class="rt-link soon" href="/runtimes#docker">
+          <svg width="26" height="26" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="9" y="16" width="5" height="5"/><rect x="15" y="16" width="5" height="5"/><rect x="21" y="16" width="5" height="5"/><rect x="15" y="10" width="5" height="5"/><rect x="21" y="10" width="5" height="5"/><path d="M4 23h28c1.5-2.5 3.5-3 5-2.5-.5 2-2 3-3.5 3.2C31 31 24.5 35 16 35 9 35 5 30 4 23z"/></svg>
+          <div><strong>Docker</strong><span data-i18n="limits.soon">soon</span></div>
+        </a>
+        <p class="side-note" data-i18n="rt.side.note">Every value on this page is read from the worker's configuration.</p>
+      </aside>
 
-    <div class="rt">
       <div>
-        <h2 data-i18n="rt.python.title">Python</h2>
-        <span class="pill ok"><span class="dot"></span>python:3.12-slim + ffmpeg</span>
-        <div class="cmdbox">
-          <span><span class="prompt">$</span>pip install -r requirements.txt</span>
-        </div>
-        <ul>
-          <li data-i18n="rt.python.bullet1">For a FastAPI, Flask API, or any ASGI/WSGI server listening on the <code>PORT</code> variable.</li>
-          <li data-i18n="rt.python.bullet2"><code>ffmpeg</code> is installed in the image, for audio and video processing.</li>
-          <li data-i18n="rt.python.bullet3">Packages install into <code>/work/.pylocal</code> (<code>PYTHONUSERBASE</code>), specific to each project.</li>
-        </ul>
-      </div>
-      <dl class="meta">
-        <dt data-i18n="rt.node.meta.image">Image</dt><dd>localhost/deplay-python:3.12-ffmpeg</dd>
-        <dt data-i18n="rt.node.meta.install">Install</dt><dd>pip install -r requirements.txt</dd>
-        <dt data-i18n="rt.node.meta.start">Start</dt><dd>python -m uvicorn main:app --host 0.0.0.0 --port $PORT</dd>
-        <dt data-i18n="rt.python.meta.env">Environment variables</dt><dd>PYTHONUSERBASE, PYTHONDONTWRITEBYTECODE</dd>
-        <dt data-i18n="rt.node.meta.memory">Memory</dt><dd>1 GB</dd>
-        <dt data-i18n="rt.node.meta.cpu">CPU</dt><dd>1</dd>
-      </dl>
-    </div>
+        <!-- Node.js -->
+        <section class="rt-sec" id="node">
+          <div class="feat-top">
+            <div>
+              <p class="k" style="margin:0" data-i18n="rt.kicker">Active runtime</p>
+              <div class="rt-id">
+                <svg class="logo" width="72" height="72" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 3 35 11.5v17L20 37 5 28.5v-17L20 3z"/><text x="20" y="25" text-anchor="middle" font-family="Inter,sans-serif" font-size="12" font-weight="700" fill="currentColor" stroke="none">JS</text></svg>
+                <div>
+                  <h2>Node.js<small>22</small></h2>
+                </div>
+                <span class="status" style="align-self:flex-start;margin-left:auto"><i></i><span data-i18n="limits.active">active</span></span>
+              </div>
+              <p class="rt-desc" data-i18n="rt.node.bullet1">For an Express, Fastify, Hono API, or any Node server listening on the <code>PORT</code> variable.</p>
+            </div>
+            <div class="deco" aria-hidden="true">
+              <svg width="190" height="130" viewBox="0 0 190 130" fill="none">
+                <defs><radialGradient id="glow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#3b82f6" stop-opacity=".55"/><stop offset="1" stop-color="#3b82f6" stop-opacity="0"/></radialGradient></defs>
+                <path d="M95 82 175 104 95 126 15 104Z" stroke="#3b82f6" stroke-opacity=".18"/>
+                <path d="M95 60 175 82 95 104 15 82Z" stroke="#3b82f6" stroke-opacity=".28"/>
+                <g stroke="#3b82f6" stroke-opacity=".5" stroke-width=".8">
+                  <path d="M95 38 175 60 95 82 15 60Z"/>
+                  <path d="M115 43.5 35 65.5M135 49 55 71M155 54.5 75 76.5M75 43.5 155 65.5M55 49 135 71M35 54.5 115 76.5"/>
+                </g>
+                <ellipse cx="95" cy="60" rx="40" ry="12" fill="url(#glow)"/>
+                <circle cx="95" cy="60" r="2.5" fill="#9cc0ff"/>
+                <path d="M95 60V8" stroke="#3b82f6" stroke-opacity=".35" stroke-dasharray="2 4"/>
+              </svg>
+              <div class="deco-tags"><b>LTS</b>node:22-slim<br>Debian slim</div>
+            </div>
+          </div>
 
-    <div class="rt">
-      <div>
-        <h2 data-i18n="rt.docker.title">Docker</h2>
-        <span class="pill warn"><span class="dot"></span><span data-i18n="rt.docker.pill">coming soon</span></span>
-        <p class="lede" data-i18n="rt.docker.desc">Deploy a project from its own Dockerfile, for stacks beyond Node.js and Python. Not available yet.</p>
+          <div class="feat-grid">
+            <div>
+              <div class="term">
+                <div class="term-bar"><span class="dot"></span><span data-i18n="rt.preview">Deployment preview</span><span class="tag">node:22-slim</span></div>
+                <div class="term-body">
+                  <div class="c"><span class="p">$</span>npm install</div>
+                  <div class="c"><span class="p">$</span>node server.js</div>
+                  <div class="l" data-i18n="rt.preview.listen">listening on $PORT</div>
+                  <div class="ok" data-i18n="rt.preview.live">live at &lt;name&gt;.fabrich.site</div>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="block">
+                <p class="k" style="margin:0"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2.5" y="4" width="19" height="16" rx="2"/><path d="m7 10 3 2.5L7 15M12 15h5"/></svg><span data-i18n="rt.quick">Quick commands</span></p>
+                <div class="cmd"><code><span class="p">$</span>npm install</code><button class="copy" type="button" data-copy="npm install" aria-label="Copy"></button></div>
+                <p class="hint" data-i18n="rt.hint.install">Install dependencies</p>
+                <div class="cmd"><code><span class="p">$</span>node server.js</code><button class="copy" type="button" data-copy="node server.js" aria-label="Copy"></button></div>
+                <p class="hint" data-i18n="rt.hint.start">Start command (editable per project)</p>
+              </div>
+            </div>
+            <div>
+              <p class="k" style="margin:0"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg><span data-i18n="rt.infra">Infrastructure</span></p>
+              <dl class="spec">
+                <div class="spec-row"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12 2.5 20.5 7v10L12 21.5 3.5 17V7L12 2.5z"/><path d="M3.5 7 12 11.5 20.5 7M12 11.5v10"/></svg><div><dt data-i18n="rt.node.meta.image">Image</dt><dd>node:22-slim</dd></div></div>
+                <div class="spec-row"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2.5" y="7" width="19" height="10" rx="1"/><path d="M6 7v10M10 7v10M14 7v10M18 7v10M5 17v3M19 17v3"/></svg><div><dt data-i18n="rt.node.meta.memory">Memory</dt><dd>1 GB</dd></div></div>
+                <div class="spec-row"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 9h6v6H9z"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></svg><div><dt>CPU</dt><dd>1 vCPU</dd></div></div>
+              </dl>
+            </div>
+          </div>
+        </section>
+
+        <!-- Python -->
+        <section class="rt-sec" id="python">
+          <div class="py-head">
+              <div class="rt-id">
+                <svg class="logo" width="56" height="56" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M20 5c-6 0-7 2.4-7 5v4h7.5v1.5H9.5C6.5 15.5 5 17.5 5 21.5s1.5 6 4.5 6H13v-4.2c0-2.6 2.2-4.8 4.8-4.8h6.4c2.2 0 3.8-1.6 3.8-3.8V10c0-2.6-2-5-8-5z"/><path d="M20 35c6 0 7-2.4 7-5v-4h-7.5v-1.5h11c3 0 4.5-2 4.5-6s-1.5-6-4.5-6H27v4.2c0 2.6-2.2 4.8-4.8 4.8h-6.4c-2.2 0-3.8 1.6-3.8 3.8V30c0 2.6 2 5 8 5z"/><circle cx="17" cy="9" r="1.1" fill="currentColor" stroke="none"/><circle cx="23" cy="31" r="1.1" fill="currentColor" stroke="none"/></svg>
+                <h2>Python<span class="ver">3.12 + ffmpeg</span></h2>
+              </div>
+              <span class="status"><i></i><span data-i18n="limits.active">active</span></span>
+              <p class="rt-desc" data-i18n="rt.python.desc">For APIs, data processing and audio/video work.</p>
+          </div>
+          <div class="py-grid">
+            <div>
+              <p class="k" style="margin:0"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2.5" y="4" width="19" height="16" rx="2"/><path d="m7 10 3 2.5L7 15M12 15h5"/></svg><span data-i18n="rt.installrun">Install &amp; run</span></p>
+              <div class="cmd"><code><span class="p">$</span>pip install -r requirements.txt</code><button class="copy" type="button" data-copy="pip install -r requirements.txt" aria-label="Copy"></button></div>
+              <ul class="notes">
+                <li data-i18n="rt.python.bullet1">For a FastAPI, Flask API, or any ASGI/WSGI server listening on the <code>PORT</code> variable.</li>
+              </ul>
+            </div>
+            <div>
+              <p class="k" style="margin:0" data-i18n="rt.details">Runtime details</p>
+              <dl class="spec">
+                <div class="spec-row"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12 2.5 20.5 7v10L12 21.5 3.5 17V7L12 2.5z"/><path d="M3.5 7 12 11.5 20.5 7M12 11.5v10"/></svg><div><dt data-i18n="rt.node.meta.image">Image</dt><dd>deplay-python:3.12-ffmpeg</dd></div></div>
+                <div class="spec-row"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3v12M7 10l5 5 5-5M4 19h16"/></svg><div><dt data-i18n="rt.node.meta.install">Install</dt><dd>pip install -r requirements.txt</dd></div></div>
+                <div class="spec-row"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M7 4.5v15L19 12 7 4.5z"/></svg><div><dt data-i18n="rt.node.meta.start">Start</dt><dd>python -m uvicorn main:app --host 0.0.0.0 --port $PORT</dd></div></div>
+              </dl>
+            </div>
+            <div>
+              <p class="k" style="margin:0" data-i18n="rt.python.meta.env">Environment variables</p>
+              <div class="env">
+                <div><span>PYTHONUSERBASE</span><span>/work/.pylocal</span></div>
+                <div><span>PYTHONDONTWRITEBYTECODE</span><span>1</span></div>
+              </div>
+              <p class="hint" data-i18n="rt.env.hint">Set automatically in the container.</p>
+              <div class="spec-pair spec">
+                <div class="spec-row"><div><dt data-i18n="rt.node.meta.memory">Memory</dt><dd>1 GB</dd></div></div>
+                <div class="spec-row"><div><dt>CPU</dt><dd>1 vCPU</dd></div></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Docker (pas encore disponible) -->
+        <section class="rt-sec" id="docker">
+          <div class="soon-row">
+            <svg class="logo" width="48" height="48" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="9" y="16" width="5" height="5"/><rect x="15" y="16" width="5" height="5"/><rect x="21" y="16" width="5" height="5"/><rect x="15" y="10" width="5" height="5"/><rect x="21" y="10" width="5" height="5"/><rect x="21" y="4" width="5" height="5"/><path d="M4 23h28c1.5-2.5 3.5-3 5-2.5-.5 2-2 3-3.5 3.2C31 31 24.5 35 16 35 9 35 5 30 4 23z"/></svg>
+            <div>
+              <h2 data-i18n="rt.docker.title">Docker</h2>
+              <p data-i18n="rt.docker.desc">Deploy a project from its own Dockerfile, for stacks beyond Node.js and Python. Not available yet.</p>
+            </div>
+            <span class="status soon"><i></i><span data-i18n="rt.docker.meta.soon">In development</span></span>
+          </div>
+        </section>
       </div>
-      <dl class="meta">
-        <dt data-i18n="rt.docker.meta.status">Status</dt><dd data-i18n="rt.docker.meta.soon">In development</dd>
-      </dl>
     </div>
   </main>
 
@@ -117,5 +318,31 @@
     <a href="/" data-i18n="footer.home">Home</a>
   </footer>
   <script src="lang.js"></script>
+  <script>
+    (function () {
+      var COPY = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>'
+      var DONE = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12.5 10 17l9-10"/></svg>'
+      document.querySelectorAll('.copy').forEach(function (b) {
+        b.innerHTML = COPY
+        b.addEventListener('click', function () {
+          if (!navigator.clipboard) return
+          navigator.clipboard.writeText(b.dataset.copy).then(function () {
+            b.innerHTML = DONE; b.classList.add('done')
+            setTimeout(function () { b.innerHTML = COPY; b.classList.remove('done') }, 1400)
+          })
+        })
+      })
+
+      var links = document.querySelectorAll('.side .rt-link')
+      if (!('IntersectionObserver' in window)) return
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (!e.isIntersecting) return
+          links.forEach(function (l) { l.classList.toggle('is-active', l.getAttribute('href') === '/runtimes#' + e.target.id) })
+        })
+      }, { rootMargin: '-40% 0px -55% 0px' })
+      document.querySelectorAll('.rt-sec').forEach(function (s) { io.observe(s) })
+    })()
+  </script>
 </body>
 </html>
