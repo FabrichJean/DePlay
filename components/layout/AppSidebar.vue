@@ -319,7 +319,7 @@ async function signOut() {
     white-space: nowrap;
   }
 
-  .user,
+  .account,
   .sidebar > :deep(.promo) {
     display: none;
   }
