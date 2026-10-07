@@ -58,6 +58,7 @@
       <nav class="docs-nav">
         <a href="/docs#overview" data-i18n="docs.nav.overview">Overview</a>
         <a href="/docs#deploy" data-i18n="docs.nav.deploy">Deployment</a>
+        <a href="/docs#cli" data-i18n="docs.nav.cli">Command line</a>
         <a href="/docs#services" data-i18n="docs.nav.services">Web services</a>
         <a href="/docs#env" data-i18n="docs.nav.env">Environment variables</a>
         <a href="/docs#faq" data-i18n="docs.nav.faq">FAQ</a>
@@ -83,6 +84,27 @@
             <div><div class="t" data-i18n="docs.step3.title">Monitor</div><div class="d" data-i18n="docs.step3.desc">Build logs, runtime logs and storage usage are visible live from the dashboard.</div></div>
           </div>
         </div>
+
+        <h2 id="cli" data-i18n="docs.cli.title">Command line (CLI)</h2>
+        <p data-i18n="docs.cli.lede">Deploy a local folder without opening the dashboard. Requires Node.js 18.17 or later. Only websites are supported for now.</p>
+        <div class="steps">
+          <div class="step">
+            <span class="n">01</span>
+            <div><div class="t" data-i18n="docs.cli.s1.title">Create a token</div><div class="d" data-i18n="docs.cli.s1.desc">In Settings → CLI tokens, name the token and create it. Copy it right away: it is shown only once.</div></div>
+          </div>
+          <div class="step">
+            <span class="n">02</span>
+            <div><div class="t" data-i18n="docs.cli.s2.title">Log in</div><div class="d"><code>npx deplay-cli login --token dpl_xxxxxxxx</code></div></div>
+          </div>
+          <div class="step">
+            <span class="n">03</span>
+            <div><div class="t" data-i18n="docs.cli.s3.title">Deploy a folder</div><div class="d"><code>cd my-site &amp;&amp; npx deplay-cli deploy</code></div></div>
+          </div>
+        </div>
+        <p style="margin-top:16px" data-i18n="docs.cli.first">On the first deploy the CLI detects the framework, asks for a project name and links the folder through <code>.deplay/project.json</code>. Next runs re-upload the files and rebuild the same project.</p>
+        <p data-i18n="docs.cli.cmds">Useful commands: <code>deplay whoami</code>, <code>deplay logout</code>, <code>deplay deploy ./dist --preset static</code> (already-built site), <code>--name</code>, <code>--yes</code>, <code>--no-wait</code>, <code>--new</code>. Install once with <code>npm install -g deplay-cli</code> to use the short <code>deplay</code> command.</p>
+        <p data-i18n="docs.cli.ignore">Never sent: <code>node_modules</code>, <code>.git</code>, <code>.env</code> files and build folders. Add more exclusions in a <code>.deplayignore</code> file (same syntax as <code>.gitignore</code>). Environment variables are set in the project page, not read from your <code>.env</code>. Limits: 200 MB and 5,000 files per upload.</p>
+        <p data-i18n="docs.cli.ci">In CI, set <code>DEPLAY_TOKEN</code> and run <code>npx deplay-cli deploy --yes</code>; commit <code>.deplay/project.json</code> so that CI updates the same project.</p>
 
         <h2 id="services" data-i18n="docs.services.title">Web services</h2>
         <p data-i18n="docs.services.lede">

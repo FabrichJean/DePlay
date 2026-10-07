@@ -69,15 +69,14 @@
       </h1>
       <p class="kicker" style="margin-top:22px" data-i18n="hero.kicker">Hosting for independents</p>
       <p class="lede" style="margin-top:10px" data-i18n="hero.lede">
-        Deplay publishes your sites and APIs from GitHub, or a simple file upload,
+        Deplay publishes your sites and APIs,
         with a public address in seconds. No server to manage.
       </p>
 
       <div style="max-width:560px;margin-top:40px">
-        <p class="section-label" style="border:0;padding:0;margin-bottom:12px" data-i18n="hero.start.label">Get started</p>
         <div class="cmdbox">
-          <span data-i18n="hero.command"><span class="prompt">$</span>git clone &lt;your-repo&gt; · import into Deplay</span>
-          <button type="button" aria-label="Copier" onclick="navigator.clipboard?.writeText('https://fabrich.site/sign-in')">
+          <span><span class="prompt">$</span>npx deplay-cli deploy</span>
+          <button type="button" class="copy-btn" data-copy="npx deplay-cli deploy" aria-label="Copy">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
           </button>
         </div>
@@ -146,6 +145,34 @@
           <h3 data-i18n="features.logs.title">Logs and usage</h3>
           <p data-i18n="features.logs.desc">Build logs, live runtime output, traffic and storage — all visible from the dashboard.</p>
         </article>
+      </div>
+    </section>
+
+    <section class="cli-sec">
+      <p class="section-label" data-i18n="cli.label">Command line</p>
+      <div class="cli-grid">
+        <div>
+          <h2 data-i18n="cli.title">Deploy straight from your terminal.</h2>
+          <p class="lede" data-i18n="cli.lede">Create a token in Settings, log in once, then ship any local folder with a single command. Builds are streamed live and your address is printed at the end.</p>
+          <ul class="cli-points">
+            <li data-i18n="cli.p1">Detects Nuxt, Next.js, Vite or plain HTML</li>
+            <li data-i18n="cli.p2">Never sends node_modules, .git or .env files</li>
+            <li data-i18n="cli.p3">Works in CI with a DEPLAY_TOKEN variable</li>
+          </ul>
+          <a href="/docs#cli" class="cli-link" data-i18n="cli.docs">Read the CLI guide →</a>
+        </div>
+        <div class="db-term">
+          <div class="db-term-bar"><i></i><i></i><i></i><span>terminal</span></div>
+          <div class="db-term-body">
+            <div class="cmd"><span class="p">$</span> npx deplay-cli login --token dpl_…</div>
+            <div class="ok" data-i18n="cli.t.login">✔ Logged in</div>
+            <div class="cmd" style="margin-top:10px"><span class="p">$</span> npx deplay-cli deploy</div>
+            <div class="ln" data-i18n="cli.t.pack">› Packing 12 files</div>
+            <div class="ln" data-i18n="cli.t.up">› Uploading</div>
+            <div class="ln" data-i18n="cli.t.build">› Following the build…</div>
+            <div class="ok" data-i18n="cli.t.live">✔ Live at https://&lt;name&gt;.fabrich.site</div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -287,5 +314,13 @@
     <a href="/docs" data-i18n="footer.doc">Documentation</a>
   </footer>
   <script src="lang.js"></script>
+  <script>
+    document.querySelectorAll('.copy-btn').forEach(function (b) {
+      b.addEventListener('click', function () {
+        if (navigator.clipboard) navigator.clipboard.writeText(b.dataset.copy)
+        b.classList.add('done'); setTimeout(function () { b.classList.remove('done') }, 1200)
+      })
+    })
+  </script>
 </body>
 </html>
