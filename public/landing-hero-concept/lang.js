@@ -48,6 +48,8 @@ window.DEPLAY_I18N = {
     'limits.runtimes.more': 'Exact images and commands',
     'limits.runtimes.moresub': 'The install and start commands actually used by the worker.',
     'limits.active': 'active',
+    'limits.soon': 'soon',
+    'limits.docker.sub': 'your own Dockerfile',
 
     'cta.kicker': 'Your next deployment',
     'cta.title': "Connect a <em>repository.</em><br>We'll handle the rest.",
@@ -72,6 +74,11 @@ window.DEPLAY_I18N = {
     'rt.python.bullet2': '<code>ffmpeg</code> is installed in the image, for audio and video processing.',
     'rt.python.bullet3': 'Packages install into <code>/work/.pylocal</code> (<code>PYTHONUSERBASE</code>), specific to each project.',
     'rt.python.meta.env': 'Environment variables',
+    'rt.docker.title': 'Docker',
+    'rt.docker.pill': 'coming soon',
+    'rt.docker.desc': 'Deploy a project from its own Dockerfile, for stacks beyond Node.js and Python. Not available yet.',
+    'rt.docker.meta.status': 'Status',
+    'rt.docker.meta.soon': 'In development',
     'footer.home': 'Home',
 
     'docs.title': 'Documentation',
@@ -143,6 +150,8 @@ window.DEPLAY_I18N = {
     'limits.runtimes.more': 'Images et commandes exactes',
     'limits.runtimes.moresub': 'Les commandes d’installation et de démarrage réellement utilisées par le worker.',
     'limits.active': 'actif',
+    'limits.soon': 'bientôt',
+    'limits.docker.sub': 'votre propre Dockerfile',
 
     'cta.kicker': 'Votre prochain déploiement',
     'cta.title': 'Connectez un <em>dépôt.</em><br>On s’occupe du reste.',
@@ -167,6 +176,11 @@ window.DEPLAY_I18N = {
     'rt.python.bullet2': '<code>ffmpeg</code> est installé dans l’image, pour les traitements audio et vidéo.',
     'rt.python.bullet3': "Les paquets s'installent dans <code>/work/.pylocal</code> (<code>PYTHONUSERBASE</code>), propre à chaque projet.",
     'rt.python.meta.env': "Variables d'environnement",
+    'rt.docker.title': 'Docker',
+    'rt.docker.pill': 'bientôt disponible',
+    'rt.docker.desc': 'Déployez un projet à partir de son propre Dockerfile, pour les stacks au-delà de Node.js et Python. Pas encore disponible.',
+    'rt.docker.meta.status': 'Statut',
+    'rt.docker.meta.soon': 'En développement',
     'footer.home': 'Accueil',
 
     'docs.title': 'Documentation',

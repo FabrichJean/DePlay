@@ -196,7 +196,11 @@ main{max-width:1120px;margin:0 auto;padding:0 32px 100px}
 .rt-panel{margin-top:22px;padding:20px 24px 24px;border:1px solid #1d1f22;border-radius:6px;background:#060606}
 .rt-panel-head{display:flex;align-items:center;gap:12px;font-family:var(--mono);font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#c9ccd3}
 .rt-panel-head svg{color:var(--muted)}
-.rt-panel-body{display:grid;grid-template-columns:1fr 1fr 1.25fr;gap:16px;margin-top:18px}
+.rt-panel-body{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:18px}
+.rt-tile.is-soon{border-style:dashed;background:transparent}
+.rt-tile.is-soon .rt-logo{color:var(--muted)}
+.rt-badge.soon{color:var(--warn);border-color:rgba(245,158,11,0.25);background:rgba(245,158,11,0.06)}
+.rt-badge.soon i{background:var(--warn);box-shadow:0 0 8px rgba(245,158,11,0.6)}
 .rt-tile{display:flex;align-items:center;gap:16px;padding:18px 20px;border:1px solid #1d1f22;border-radius:5px;background:#0a0a0b}
 .rt-logo{color:#c9ccd3;flex-shrink:0}
 .rt-info{flex:1;min-width:0}
@@ -204,7 +208,7 @@ main{max-width:1120px;margin:0 auto;padding:0 32px 100px}
 .rt-info span{display:block;margin-top:4px;font-family:var(--mono);font-size:11px;color:var(--subtle)}
 .rt-badge{display:inline-flex;align-items:center;gap:7px;padding:4px 9px;border:1px solid rgba(34,199,138,0.22);border-radius:4px;background:rgba(34,199,138,0.06);font-family:var(--mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ok)}
 .rt-badge i{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px rgba(34,199,138,0.6)}
-.rt-more{display:flex;align-items:center;gap:16px;padding:18px 20px;border-left:1px solid #1d1f22;color:var(--muted);transition:color .15s ease}
+.rt-more{grid-column:1 / -1;display:flex;align-items:center;gap:16px;padding:16px 4px 0;border-top:1px solid #1d1f22;color:var(--muted);transition:color .15s ease}
 .rt-more svg{flex-shrink:0;color:#c9ccd3}
 .rt-more strong{display:block;font-size:13.5px;font-weight:500;color:var(--text)}
 .rt-more span{display:block;margin-top:5px;font-family:var(--mono);font-size:11px;line-height:1.55}
@@ -246,7 +250,7 @@ main{max-width:1120px;margin:0 auto;padding:0 32px 100px}
   .lim-layout{grid-template-columns:1fr;gap:28px}
   .lim-intro p{max-width:460px}
   .rt-panel-body{grid-template-columns:1fr 1fr}
-  .rt-more{grid-column:1 / -1;border-left:0;border-top:1px solid #1d1f22;padding:18px 4px 0}
+  .rt-tile.is-soon{grid-column:1 / -1}
   .deploy-band{grid-template-columns:1fr 1fr}
   .db-cta{grid-column:1 / -1}
 }
