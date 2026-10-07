@@ -9,7 +9,7 @@ Il ne contient aucun secret : les clés sont dans `.env`, qu'il ne faut ni lire 
 (depuis un dépôt Git ou un upload de fichiers), le worker le construit, puis publie le résultat sur une URL.
 
 - Propriétaire : Fabrich (`hei.fabrich.2@gmail.com`).
-- Domaine prévu : `deplay.fabrich.site` pour l'application ; chaque site publié aura `<projet>.fabrich.site`.
+- Domaines : `deplay.fabrich.site` = site public (landing, statique via nginx) ; `ondeplay.fabrich.site` = plateforme (application Nuxt) ; chaque site publié a `<projet>.fabrich.site`.
 - Projet non versionné par Git (pas de dépôt `.git`).
 - Interface en anglais, commentaires de code en français, échanges avec l'utilisateur en français.
 
