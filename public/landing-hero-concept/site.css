@@ -23,6 +23,40 @@ header{
 .brand svg{display:block}
 .crumb{color:var(--muted);font-weight:400}
 nav{display:flex;align-items:center;gap:28px}
+/* sélecteur de langue : drapeau + flèche, menu déroulant au clic */
+.lang-switch{position:relative}
+.lang-current{
+  all:unset;box-sizing:border-box;cursor:pointer;
+  display:flex;align-items:center;gap:7px;height:32px;padding:0 10px;
+  border:1px solid var(--border);border-radius:7px;background:var(--card);color:var(--muted);
+  font-family:var(--sans);transition:border-color .15s ease,color .15s ease,background .15s ease;
+}
+.lang-current:hover{color:var(--text);border-color:var(--subtle)}
+.lang-current .flag{font-size:13px;line-height:1;filter:saturate(1.05)}
+.lang-current svg{color:var(--subtle);transition:transform .18s ease}
+.lang-switch.open .lang-current{border-color:var(--accent);color:var(--text);background:var(--card)}
+.lang-switch.open .lang-current svg{transform:rotate(180deg);color:var(--accent)}
+.lang-menu{
+  position:absolute;top:calc(100% + 8px);right:0;z-index:30;min-width:168px;margin:0;padding:5px;
+  list-style:none;background:#0d0d0d;border:1px solid var(--border);border-radius:11px;
+  box-shadow:0 20px 44px -16px rgba(0,0,0,0.85),0 0 0 1px rgba(255,255,255,0.02) inset;
+  display:none;overflow:hidden;
+  opacity:0;transform:translateY(-4px) scale(0.98);transition:opacity .14s ease,transform .14s ease;
+}
+.lang-switch.open .lang-menu{display:block;opacity:1;transform:translateY(0) scale(1)}
+.lang-menu li{margin:0;padding:0}
+.lang-menu li + li{margin-top:2px}
+.lang-btn{
+  all:unset;box-sizing:border-box;cursor:pointer;
+  display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;
+  font-size:12.5px;font-family:var(--sans);color:var(--muted);border-radius:7px;text-align:left;
+  transition:background .12s ease,color .12s ease;
+}
+.lang-btn .flag{font-size:14px;line-height:1}
+.lang-btn:hover{background:rgba(242,242,242,0.06);color:var(--text)}
+.lang-btn.is-active{color:var(--text);background:rgba(59,130,246,0.1)}
+.lang-btn.is-active:hover{background:rgba(59,130,246,0.14)}
+.lang-btn.is-active::after{content:'✓';margin-left:auto;color:var(--accent);font-weight:700;font-size:12px}
 .nav-links{display:flex;gap:24px}
 .nav-links a{font-size:12.5px;font-weight:600;letter-spacing:0.06em;color:var(--muted);padding-bottom:3px;border-bottom:2px solid transparent}
 .nav-links a:hover{color:var(--text)}
@@ -47,7 +81,7 @@ main{max-width:1120px;margin:0 auto;padding:0 32px 100px}
 .spark.s2{bottom:6px;right:20px}
 @media (max-width:1040px){.hero-cards{display:none}}
 
-.stencil{position:relative;display:inline-block;font-weight:800;line-height:0.86;letter-spacing:-0.02em}
+.stencil{position:relative;display:inline-block;font-weight:800;line-height:0.86;letter-spacing:-0.02em;transform:scaleY(0.82);transform-origin:left top;margin-bottom:-0.16em}
 .stencil .behind{position:absolute;inset:0;color:transparent;-webkit-text-stroke:1px #2564eba6;z-index:0;transform:translate(6px,6px)}
 .stencil .front{position:relative;z-index:1;color:var(--text)}
 

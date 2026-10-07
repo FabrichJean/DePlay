@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="fr">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Runtimes — Deplay</title>
-<meta name="description" content="Node.js et Python : les deux runtimes disponibles pour les web services Deplay, avec leurs commandes réelles.">
+<meta name="description" content="Node.js and Python: the two runtimes available for Deplay web services, with their real commands.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -29,71 +29,82 @@
     </div>
     <nav>
       <div class="nav-links">
-        <a href="/runtimes" class="is-active">Runtimes</a>
-        <a href="/docs">Docs</a>
+        <a href="/runtimes" class="is-active" data-i18n="nav.runtimes">Runtimes</a>
+        <a href="/docs" data-i18n="nav.docs">Docs</a>
       </div>
-      <a href="/sign-in" class="nav-cta">Commencer →</a>
+      <div class="lang-switch" id="langSwitch">
+        <button type="button" class="lang-current" id="langToggle" aria-haspopup="listbox" aria-expanded="false">
+          <span class="flag" id="langFlag">🇬🇧</span>
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <ul class="lang-menu" role="listbox">
+          <li><button type="button" class="lang-btn is-active" data-lang="en" role="option"><span class="flag">🇬🇧</span> English</button></li>
+          <li><button type="button" class="lang-btn" data-lang="fr" role="option"><span class="flag">🇫🇷</span> Français</button></li>
+        </ul>
+      </div>
+      <a href="/sign-in" class="nav-cta" data-i18n="nav.cta">Get started →</a>
     </nav>
   </header>
 
   <main>
     <section style="padding:48px 0 0">
-      <h1 style="font-size:clamp(32px,5vw,48px);font-weight:800;letter-spacing:-0.02em;margin:0">Runtimes</h1>
-      <p class="lede" style="margin-top:12px">
-        Un web service Deplay tourne dans l'un de ces deux runtimes. L'image, la commande d'installation
-        et la commande de démarrage sont celles réellement utilisées par le worker.
+      <h1 style="font-size:clamp(32px,5vw,48px);font-weight:800;letter-spacing:-0.02em;margin:0" data-i18n="rt.title">Runtimes</h1>
+      <p class="lede" style="margin-top:12px" data-i18n="rt.lede">
+        A Deplay web service runs in one of these two runtimes. The image, install command
+        and start command are the ones actually used by the worker.
       </p>
     </section>
 
     <div class="rt">
       <div>
-        <h2>Node.js</h2>
+        <h2 data-i18n="rt.node.title">Node.js</h2>
         <span class="pill ok"><span class="dot"></span>node:22-slim</span>
         <div class="cmdbox">
           <span><span class="prompt">$</span>npm install</span>
         </div>
         <ul>
-          <li>Pour une API Express, Fastify, Hono, ou tout serveur Node qui écoute sur la variable <code>PORT</code>.</li>
-          <li>Le dossier du dépôt est monté tel quel dans le conteneur, rien n'est copié au préalable.</li>
-          <li>Redémarre automatiquement si le processus s'arrête.</li>
+          <li data-i18n="rt.node.bullet1">For an Express, Fastify, Hono API, or any Node server listening on the <code>PORT</code> variable.</li>
+          <li data-i18n="rt.node.bullet2">The repository folder is mounted as-is in the container, nothing is copied beforehand.</li>
+          <li data-i18n="rt.node.bullet3">Restarts automatically if the process stops.</li>
         </ul>
       </div>
       <dl class="meta">
-        <dt>Image</dt><dd>docker.io/library/node:22-slim</dd>
-        <dt>Installation</dt><dd>npm install</dd>
-        <dt>Démarrage</dt><dd>node server.js</dd>
-        <dt>Mémoire</dt><dd>1 Go</dd>
-        <dt>CPU</dt><dd>1</dd>
+        <dt data-i18n="rt.node.meta.image">Image</dt><dd>docker.io/library/node:22-slim</dd>
+        <dt data-i18n="rt.node.meta.install">Install</dt><dd>npm install</dd>
+        <dt data-i18n="rt.node.meta.start">Start</dt><dd>node server.js</dd>
+        <dt data-i18n="rt.node.meta.memory">Memory</dt><dd>1 GB</dd>
+        <dt data-i18n="rt.node.meta.cpu">CPU</dt><dd>1</dd>
       </dl>
     </div>
 
     <div class="rt">
       <div>
-        <h2>Python</h2>
+        <h2 data-i18n="rt.python.title">Python</h2>
         <span class="pill ok"><span class="dot"></span>python:3.12-slim + ffmpeg</span>
         <div class="cmdbox">
           <span><span class="prompt">$</span>pip install -r requirements.txt</span>
         </div>
         <ul>
-          <li>Pour une API FastAPI, Flask ou tout serveur ASGI/WSGI qui écoute sur la variable <code>PORT</code>.</li>
-          <li><code>ffmpeg</code> est installé dans l'image, pour les traitements audio et vidéo.</li>
-          <li>Les paquets s'installent dans <code>/work/.pylocal</code> (<code>PYTHONUSERBASE</code>), propre à chaque projet.</li>
+          <li data-i18n="rt.python.bullet1">For a FastAPI, Flask API, or any ASGI/WSGI server listening on the <code>PORT</code> variable.</li>
+          <li data-i18n="rt.python.bullet2"><code>ffmpeg</code> is installed in the image, for audio and video processing.</li>
+          <li data-i18n="rt.python.bullet3">Packages install into <code>/work/.pylocal</code> (<code>PYTHONUSERBASE</code>), specific to each project.</li>
         </ul>
       </div>
       <dl class="meta">
-        <dt>Image</dt><dd>localhost/deplay-python:3.12-ffmpeg</dd>
-        <dt>Installation</dt><dd>pip install -r requirements.txt</dd>
-        <dt>Démarrage</dt><dd>python -m uvicorn main:app --host 0.0.0.0 --port $PORT</dd>
-        <dt>Variables d'environnement</dt><dd>PYTHONUSERBASE, PYTHONDONTWRITEBYTECODE</dd>
-        <dt>Mémoire</dt><dd>1 Go</dd>
-        <dt>CPU</dt><dd>1</dd>
+        <dt data-i18n="rt.node.meta.image">Image</dt><dd>localhost/deplay-python:3.12-ffmpeg</dd>
+        <dt data-i18n="rt.node.meta.install">Install</dt><dd>pip install -r requirements.txt</dd>
+        <dt data-i18n="rt.node.meta.start">Start</dt><dd>python -m uvicorn main:app --host 0.0.0.0 --port $PORT</dd>
+        <dt data-i18n="rt.python.meta.env">Environment variables</dt><dd>PYTHONUSERBASE, PYTHONDONTWRITEBYTECODE</dd>
+        <dt data-i18n="rt.node.meta.memory">Memory</dt><dd>1 GB</dd>
+        <dt data-i18n="rt.node.meta.cpu">CPU</dt><dd>1</dd>
       </dl>
     </div>
   </main>
 
   <footer>
     <span>© 2026 Deplay — fabrich.site</span>
-    <a href="/">Accueil</a>
+    <a href="/" data-i18n="footer.home">Home</a>
   </footer>
+  <script src="lang.js"></script>
 </body>
 </html>

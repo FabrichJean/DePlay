@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="fr">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Documentation — Deplay</title>
-<meta name="description" content="Comment Deplay construit, publie et surveille vos sites et vos web services.">
+<meta name="description" content="How Deplay builds, publishes and monitors your sites and web services.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -36,69 +36,80 @@
     </div>
     <nav>
       <div class="nav-links">
-        <a href="/runtimes">Runtimes</a>
-        <a href="/docs" class="is-active">Docs</a>
+        <a href="/runtimes" data-i18n="nav.runtimes">Runtimes</a>
+        <a href="/docs" class="is-active" data-i18n="nav.docs">Docs</a>
       </div>
-      <a href="/sign-in" class="nav-cta">Commencer →</a>
+      <div class="lang-switch" id="langSwitch">
+        <button type="button" class="lang-current" id="langToggle" aria-haspopup="listbox" aria-expanded="false">
+          <span class="flag" id="langFlag">🇬🇧</span>
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <ul class="lang-menu" role="listbox">
+          <li><button type="button" class="lang-btn is-active" data-lang="en" role="option"><span class="flag">🇬🇧</span> English</button></li>
+          <li><button type="button" class="lang-btn" data-lang="fr" role="option"><span class="flag">🇫🇷</span> Français</button></li>
+        </ul>
+      </div>
+      <a href="/sign-in" class="nav-cta" data-i18n="nav.cta">Get started →</a>
     </nav>
   </header>
 
   <main>
     <div class="docs">
       <nav class="docs-nav">
-        <a href="/docs#overview">Vue d'ensemble</a>
-        <a href="/docs#deploy">Déploiement</a>
-        <a href="/docs#services">Web services</a>
-        <a href="/docs#env">Variables d'environnement</a>
-        <a href="/docs#faq">FAQ</a>
+        <a href="/docs#overview" data-i18n="docs.nav.overview">Overview</a>
+        <a href="/docs#deploy" data-i18n="docs.nav.deploy">Deployment</a>
+        <a href="/docs#services" data-i18n="docs.nav.services">Web services</a>
+        <a href="/docs#env" data-i18n="docs.nav.env">Environment variables</a>
+        <a href="/docs#faq" data-i18n="docs.nav.faq">FAQ</a>
       </nav>
 
       <div>
-        <h1 id="overview">Documentation</h1>
-        <p>Comment Deplay construit, publie et surveille vos sites et vos API.</p>
+        <h1 id="overview" data-i18n="docs.title">Documentation</h1>
+        <p data-i18n="docs.lede">How Deplay builds, publishes and monitors your sites and APIs.</p>
 
-        <h2 id="deploy">Déploiement</h2>
-        <p>Un déploiement passe toujours par les trois mêmes étapes, que ce soit un site statique ou un web service.</p>
+        <h2 id="deploy" data-i18n="docs.deploy.title">Deployment</h2>
+        <p data-i18n="docs.deploy.lede">A deployment always goes through the same three steps, whether it is a static site or a web service.</p>
         <div class="steps">
           <div class="step">
             <span class="n">01</span>
-            <div><div class="t">Connectez</div><div class="d">Importez un dépôt GitHub, ou déposez vos fichiers directement. Deplay détecte le framework et pré-remplit les commandes.</div></div>
+            <div><div class="t" data-i18n="docs.step1.title">Connect</div><div class="d" data-i18n="docs.step1.desc">Import a GitHub repository, or upload your files directly. Deplay detects the framework and pre-fills the commands.</div></div>
           </div>
           <div class="step">
             <span class="n">02</span>
-            <div><div class="t">Déployez</div><div class="d">Le build tourne dans un conteneur isolé, séparé de votre compte et des autres projets.</div></div>
+            <div><div class="t" data-i18n="docs.step2.title">Deploy</div><div class="d" data-i18n="docs.step2.desc">The build runs in an isolated container, separate from your account and other projects.</div></div>
           </div>
           <div class="step">
             <span class="n">03</span>
-            <div><div class="t">Suivez</div><div class="d">Logs de build, logs d'exécution et usage de stockage sont visibles en direct depuis le tableau de bord.</div></div>
+            <div><div class="t" data-i18n="docs.step3.title">Monitor</div><div class="d" data-i18n="docs.step3.desc">Build logs, runtime logs and storage usage are visible live from the dashboard.</div></div>
           </div>
         </div>
 
-        <h2 id="services">Web services</h2>
-        <p>
-          Un web service est un processus de longue durée, écoutant sur un port, avec sa propre adresse publique
-          (<code>&lt;nom&gt;.fabrich.site</code>). Deux runtimes sont disponibles : voir <a href="/runtimes">Runtimes</a>.
-          Un service arrêté redémarre seul ; limite de 2 services par compte, 1 Go de mémoire chacun.
+        <h2 id="services" data-i18n="docs.services.title">Web services</h2>
+        <p data-i18n="docs.services.lede">
+          A web service is a long-running process listening on a port, with its own public address
+          (<code>&lt;name&gt;.fabrich.site</code>). Two runtimes are available: see <a href="/runtimes">Runtimes</a>.
+          A stopped service restarts on its own; limit of 2 services per account, 1 GB of memory each.
         </p>
 
-        <h2 id="env">Variables d'environnement</h2>
-        <p>
-          Chaque projet a ses propres variables, chiffrées et injectées au démarrage du build et du service.
-          Elles s'importent depuis un fichier <code>.env</code>, se collent directement, ou s'ajoutent une par une.
-          Les modifier déclenche un nouveau déploiement.
+        <h2 id="env" data-i18n="docs.env.title">Environment variables</h2>
+        <p data-i18n="docs.env.lede">
+          Each project has its own variables, encrypted and injected at build and at service startup.
+          Import them from a <code>.env</code> file, paste them directly, or add them one by one.
+          Changing them triggers a new deployment.
         </p>
 
-        <h2 id="faq">FAQ</h2>
-        <p><strong style="color:var(--text)">Mon dépôt privé fonctionne-t-il ?</strong><br>Oui, Deplay se connecte à votre compte GitHub et clone le dépôt lors du build.</p>
-        <p><strong style="color:var(--text)">Que se passe-t-il si je supprime un projet ?</strong><br>Le conteneur du web service est arrêté et sa route publique retirée dans la minute.</p>
-        <p><strong style="color:var(--text)">Le stockage est-il partagé ?</strong><br>Oui : 700 Mo au total par compte, pour tous les sites et web services réunis.</p>
+        <h2 id="faq" data-i18n="docs.faq.title">FAQ</h2>
+        <p data-i18n="docs.faq.item1"><strong style="color:var(--text)">Does my private repository work?</strong><br>Yes, Deplay connects to your GitHub account and clones the repository during the build.</p>
+        <p data-i18n="docs.faq.item2"><strong style="color:var(--text)">What happens when I delete a project?</strong><br>The web service's container is stopped and its public route removed within a minute.</p>
+        <p data-i18n="docs.faq.item3"><strong style="color:var(--text)">Is storage shared?</strong><br>Yes: 700 MB in total per account, across all sites and web services combined.</p>
       </div>
     </div>
   </main>
 
   <footer>
     <span>© 2026 Deplay — fabrich.site</span>
-    <a href="/">Accueil</a>
+    <a href="/" data-i18n="footer.home">Home</a>
   </footer>
+  <script src="lang.js"></script>
 </body>
 </html>
