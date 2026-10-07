@@ -16,7 +16,7 @@ window.DEPLAY_I18N = {
     'hero.card3.quote': '“Finally a platform that actually does what it promises.”',
 
     'hero.kicker': 'Hosting for independents',
-    'hero.lede': 'Deplay publishes your sites and APIs from GitHub, or a simple file upload, with a public address in seconds. No server to manage.',
+    'hero.lede': 'Deplay publishes your sites and APIs, with a public address in seconds. No server to manage.',
     'hero.start.label': 'Deploy from your terminal',
     'hero.cli.hint': 'Deploy a local folder from your terminal.',
     'hero.cli.link': 'CLI docs →',
@@ -157,7 +157,7 @@ window.DEPLAY_I18N = {
     'hero.card3.quote': '“Enfin une plateforme qui fait vraiment ce qu’elle promet.”',
 
     'hero.kicker': 'Hébergement pour indépendants',
-    'hero.lede': 'Deplay publie vos sites et vos API depuis GitHub, ou un simple dépôt de fichiers, avec une adresse publique en quelques secondes. Aucun serveur à gérer.',
+    'hero.lede': 'Deplay publie vos sites et vos API, avec une adresse publique en quelques secondes. Aucun serveur à gérer.',
     'hero.start.label': 'Déployer depuis votre terminal',
     'hero.cli.hint': 'Déployez un dossier local depuis votre terminal.',
     'hero.cli.link': 'Doc de la CLI →',

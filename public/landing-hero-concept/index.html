@@ -161,7 +161,7 @@
           </ul>
           <a href="/docs#cli" class="cli-link" data-i18n="cli.docs">Read the CLI guide →</a>
         </div>
-        <div class="db-term">
+        <div class="db-term cli-term">
           <div class="db-term-bar"><i></i><i></i><i></i><span>terminal</span></div>
           <div class="db-term-body">
             <div class="cmd"><span class="p">$</span> npx deplay-cli login --token dpl_…</div>
@@ -321,6 +321,50 @@
         b.classList.add('done'); setTimeout(function () { b.classList.remove('done') }, 1200)
       })
     })
+  </script>
+  <script>
+    (function () {
+      var term = document.querySelector('.cli-term')
+      if (!term) return
+      var rows = Array.prototype.slice.call(term.querySelectorAll('.db-term-body > div'))
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+      var typed = rows.map(function (row) {
+        var p = row.querySelector('.p')
+        return row.classList.contains('cmd') && p ? { row: row, p: p, text: row.textContent.replace(p.textContent, '').trim() } : null
+      })
+      var caret = document.createElement('span'); caret.className = 'caret'
+      var wait = function (ms) { return new Promise(function (r) { setTimeout(r, ms) }) }
+
+      term.classList.add('is-anim')
+      async function play() {
+        rows.forEach(function (row, i) {
+          row.classList.remove('show')
+          if (typed[i]) typed[i].row.lastChild.textContent = ' '
+        })
+        await wait(500)
+        for (var i = 0; i < rows.length; i++) {
+          rows[i].classList.add('show')
+          if (typed[i]) {
+            var node = typed[i].row.lastChild
+            typed[i].row.appendChild(caret)
+            for (var n = 1; n <= typed[i].text.length; n++) {
+              node.textContent = ' ' + typed[i].text.slice(0, n)
+              await wait(26 + Math.random() * 30)
+            }
+            await wait(450)
+            caret.remove()
+          } else {
+            await wait(i === rows.length - 1 ? 0 : 420)
+          }
+        }
+        await wait(4200)
+        play()
+      }
+      var started = false
+      new IntersectionObserver(function (entries, io) {
+        if (entries[0].isIntersecting && !started) { started = true; io.disconnect(); play() }
+      }, { threshold: 0.4 }).observe(term)
+    })()
   </script>
 </body>
 </html>
