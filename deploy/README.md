@@ -4,7 +4,8 @@ Ce dossier contient les fichiers à installer sur le VPS. Rien n'est copié auto
 
 ## Architecture
 
-- `https://deplay.fabrich.site` → nginx → application Nuxt sur `127.0.0.1:3100` (`deplay-app.service`).
+- `https://deplay.fabrich.site` → nginx → site public statique (`/www/wwwroot/deplay-landing`, `deploy/nginx/deplay-landing.conf`), rempli par `update.sh`. Les anciennes adresses de l'application (`/projects`, `/sign-in`, `/api`…) y sont redirigées vers la plateforme.
+- `https://ondeplay.fabrich.site` → nginx → application Nuxt sur `127.0.0.1:3100` (`deplay-app.service`) : connexion, tableau de bord, API.
 - `https://<projet>.fabrich.site` → nginx → dossier statique `/www/wwwroot/deplay-sites/<projet>` (un seul bloc nginx, `deploy/nginx/deplay-sites.conf`).
 - Le worker (`deplay-worker.service`) construit les projets dans Docker, puis copie le résultat statique dans ce dossier. Il n'appelle plus nginx ni sudo.
 - Seuls les sites statiques sont acceptés : Nuxt doit être généré (`nuxt generate`), Next exporté (`output: 'export'`).
@@ -35,7 +36,7 @@ Ce dossier contient les fichiers à installer sur le VPS. Rien n'est copié auto
    ```
 5. **nginx**
    ```bash
-   sudo cp deploy/nginx/deplay-app.conf /www/server/panel/vhost/nginx/
+   sudo cp deploy/nginx/deplay-app.conf deploy/nginx/deplay-landing.conf /www/server/panel/vhost/nginx/
    sudo /www/server/nginx/sbin/nginx -t && sudo /www/server/nginx/sbin/nginx -s reload
    ```
 6. **Sites statiques** : créer le dossier servi par nginx, puis installer le bloc unique.
@@ -58,13 +59,16 @@ Ce dossier contient les fichiers à installer sur le VPS. Rien n'est copié auto
 - **Quotas et limites** : `config/limits.json` (700 Mo par compte, 3 builds simultanés, 1 par compte). Chaque build tourne dans un conteneur de 1 CPU et 1 Go.
 - **Docker** : le groupe `docker` équivaut à des droits root. Préférer **Docker rootless** pour l'utilisateur `deplay`.
 - **Ports** : 3000 (todo), 3001 (webhook), 3334 (epta), 8091 (déploiement madascribe), 8888 (android-builder) sont déjà utilisés. Ne pas les attribuer aux projets.
-- **Clerk** : ajouter `https://deplay.fabrich.site` aux origines autorisées du tableau de bord Clerk.
+- **DNS** : `ondeplay.fabrich.site` est couvert par le wildcard `*.fabrich.site` (aucun enregistrement à ajouter si le wildcard existe déjà).
+- **Clerk** : l'application est sur `https://ondeplay.fabrich.site`. Dans le tableau de bord Clerk, ajouter ce domaine aux origines et aux URL de redirection autorisées, et vérifier que le domaine de l'instance de production permet des cookies sur ce sous-domaine. Facultatif : `NUXT_PUBLIC_CLERK_AFTER_SIGN_OUT_URL=https://deplay.fabrich.site` pour revenir à la landing après la déconnexion.
 - **Sauvegardes** : `/opt/deplay/prisma/dev.db` et `/opt/deplay/storage/projects` (les fichiers uploadés).
 
 ## Vérifications
 
 ```bash
 systemctl status deplay-app deplay-worker
-curl -I https://deplay.fabrich.site
+curl -I https://deplay.fabrich.site        # landing
+curl -I https://ondeplay.fabrich.site      # plateforme
+curl -I https://deplay.fabrich.site/projects   # doit répondre 308 vers ondeplay
 sudo /www/server/nginx/sbin/nginx -t
 ```

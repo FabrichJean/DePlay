@@ -11,7 +11,7 @@
 #   - deploy/ et config/ appartiennent à root (lus en root par les scripts) ; le reste appartient à deplay
 #   - build, migrations et client Prisma sont faits en tant que deplay, pour éviter les dossiers créés par root
 #
-# Étapes : vérification, code, droits, dépendances, client Prisma, build, migrations, redémarrage app (pm2) et worker.
+# Étapes : vérification, code, droits, dépendances, client Prisma, build, migrations, site public, redémarrage app (pm2) et worker.
 set -eu
 
 NO_DEP=0
@@ -69,6 +69,15 @@ $RUN_AS_DEPLAY "cd $APP && . ./.env && PATH=/opt/node22/bin:\$PATH npx nuxi buil
 
 echo "==> migrations"
 $RUN_AS_DEPLAY "cd $APP && . ./.env && PATH=/opt/node22/bin:\$PATH npx prisma migrate deploy"
+
+echo "==> site public"
+# Landing servie par nginx (deploy/nginx/deplay-landing.conf) : copie des fichiers statiques
+LANDING=/www/wwwroot/deplay-landing
+mkdir -p "$LANDING"
+rm -rf "$LANDING"/*
+cp -R "$APP/public/landing-hero-concept/." "$LANDING/"
+cp "$APP/public/favicon.svg" "$LANDING/favicon.svg"
+chmod -R a+rX "$LANDING"
 
 echo "==> redémarrage"
 # reload avec le fichier de configuration : relit .env (pm2 restart ne le relit pas)
