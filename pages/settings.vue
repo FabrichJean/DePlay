@@ -83,6 +83,8 @@ function formatQuota(bytes: number): string {
         </dl>
       </section>
 
+      <CliTokens />
+
       <WorkspaceUsage v-if="usage" :usage="usage" />
     </template>
 

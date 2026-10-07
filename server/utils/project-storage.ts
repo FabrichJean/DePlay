@@ -1,4 +1,4 @@
-import { mkdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname, isAbsolute, join, resolve, sep } from 'node:path'
 
 export interface StoredFile {
@@ -22,8 +22,32 @@ export function projectDir(name: string): string {
 
 // Écrit les fichiers dans le dossier du projet, en refusant tout chemin qui sortirait de ce dossier
 export async function writeProjectFiles(name: string, files: StoredFile[]): Promise<string> {
-  const root = projectDir(name)
+  return writeFilesTo(projectDir(name), files)
+}
 
+// Remplace tous les fichiers d'un projet. Les nouveaux sont écrits à côté puis échangés,
+// pour que l'ancienne version reste intacte si l'écriture échoue.
+export async function replaceProjectFiles(name: string, files: StoredFile[]): Promise<void> {
+  const root = projectDir(name)
+  const stamp = Date.now()
+  const staging = `${root}.incoming-${stamp}`
+  const previous = `${root}.previous-${stamp}`
+
+  try {
+    await writeFilesTo(staging, files)
+  } catch (error) {
+    await rm(staging, { recursive: true, force: true })
+    throw error
+  }
+
+  await rename(root, previous).catch((error: NodeJS.ErrnoException) => {
+    if (error.code !== 'ENOENT') throw error
+  })
+  await rename(staging, root)
+  await rm(previous, { recursive: true, force: true })
+}
+
+async function writeFilesTo(root: string, files: StoredFile[]): Promise<string> {
   for (const file of files) {
     const segments = file.path.split(/[\\/]/)
     if (isAbsolute(file.path) || segments.includes('..')) {

@@ -73,6 +73,14 @@ Toutes exigent une connexion Clerk (401 sinon) et vérifient la propriété du p
 | GET | `/api/projects/[id]/deployment` | Dernier déploiement du projet |
 | POST | `/api/projects/[id]/redeploy` | Crée un déploiement en attente (409 si un build est en cours) |
 | GET | `/api/deployments/[id]` | Détail d'un déploiement (propriété vérifiée via le projet) |
+| POST | `/api/projects/[id]/upload` | Nouvelle version des fichiers d'un site uploadé (archive zip) + déploiement — utilisé par la CLI |
+| GET | `/api/cli/whoami` | Vérification du jeton par la CLI |
+| GET / POST | `/api/tokens` | Jetons CLI de l'utilisateur — **session Clerk uniquement** |
+| DELETE | `/api/tokens/[id]` | Révocation d'un jeton CLI — session Clerk uniquement |
+
+**Jetons CLI** : `Authorization: Bearer dpl_…` est résolu par `server/middleware/api-token.ts` (empreinte SHA-256
+dans la table `ApiToken`) ; `requireUser` accepte alors le jeton à la place de la session. La CLI elle-même est
+dans `cli/` (paquet npm `deplay-cli`, publié séparément).
 
 Utilitaires serveur importants (`server/utils/`) : `require-user.ts`, `owner.ts` (`currentUserId`, `assertOwner`),
 `db.ts` (client Prisma), `project-mapper.ts`, `deployment-mapper.ts`, `initial-deployment.ts`,

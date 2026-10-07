@@ -84,3 +84,19 @@ model Deployment {
   cloneToken   String?
   createdAt    DateTime @default(now())
 }
+
+// Jeton personnel pour la CLI (deplay-cli). Seule l'empreinte SHA-256 est stockée :
+// le jeton en clair n'est montré qu'une fois, à la création.
+model ApiToken {
+  id         String    @id @default(cuid())
+  /// Identifiant Clerk du propriétaire
+  userId     String
+  name       String
+  tokenHash  String    @unique
+  /// Début du jeton, pour le reconnaître dans la liste (ex. « dpl_a1b2c3 »)
+  prefix     String
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+}

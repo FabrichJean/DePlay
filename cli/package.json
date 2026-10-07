@@ -1,0 +1,28 @@
+{
+  "name": "deplay-cli",
+  "version": "0.1.0",
+  "description": "Deploy a local website to Deplay from your terminal.",
+  "type": "module",
+  "bin": {
+    "deplay": "bin/deplay.mjs"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18.17"
+  },
+  "keywords": [
+    "deplay",
+    "deploy",
+    "hosting",
+    "static-site",
+    "cli"
+  ],
+  "homepage": "https://deplay.fabrich.site",
+  "dependencies": {
+    "fflate": "^0.8.2"
+  }
+}
