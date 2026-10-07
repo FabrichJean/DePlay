@@ -344,5 +344,10 @@ window.DEPLAY_I18N = {
     if (e.key === 'Escape') closeMenu()
   })
 
+  // En local (npm run dev), la plateforme est servie par la même application : liens relatifs
+  if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) {
+    document.querySelectorAll('a[data-app]').forEach(function (a) { a.setAttribute('href', a.getAttribute('data-app')) })
+  }
+
   apply(getLang())
 })()
