@@ -2,7 +2,7 @@ import { chmod, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 
-export const DEFAULT_API = 'https://deplay.fabrich.site'
+export const DEFAULT_API = 'https://ondeplay.fabrich.site'
 
 function configPath() {
   const base = process.env.XDG_CONFIG_HOME || join(homedir(), '.config')
