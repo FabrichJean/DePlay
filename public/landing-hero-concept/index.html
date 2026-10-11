@@ -308,9 +308,16 @@
   <script src="lang.js"></script>
   <script>
     document.querySelectorAll('.copy-btn').forEach(function (b) {
+      var COPY = b.innerHTML
+      var DONE = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12.5 10 17l9-10"/></svg>'
+      var timer
       b.addEventListener('click', function () {
-        if (navigator.clipboard) navigator.clipboard.writeText(b.dataset.copy)
-        b.classList.add('done'); setTimeout(function () { b.classList.remove('done') }, 1200)
+        if (!navigator.clipboard) return
+        navigator.clipboard.writeText(b.dataset.copy).then(function () {
+          b.innerHTML = DONE; b.classList.add('done'); b.setAttribute('aria-label', 'Copied')
+          clearTimeout(timer)
+          timer = setTimeout(function () { b.innerHTML = COPY; b.classList.remove('done'); b.setAttribute('aria-label', 'Copy') }, 1500)
+        })
       })
     })
   </script>
