@@ -39,13 +39,21 @@ const plainText = computed(() =>
   props.lines.map((line) => `[${line.time}] ${line.message}`).join('\n'),
 )
 
+// Après une copie réussie, l'icône devient une coche pendant un instant
+const copied = ref(false)
+let copiedTimer: ReturnType<typeof setTimeout> | undefined
+
 async function copyLogs() {
   try {
     await navigator.clipboard.writeText(plainText.value)
+    copied.value = true
+    clearTimeout(copiedTimer)
+    copiedTimer = setTimeout(() => { copied.value = false }, 1500)
   } catch {
     // Presse-papiers indisponible (contexte non sécurisé) : on ignore silencieusement
   }
 }
+onBeforeUnmount(() => clearTimeout(copiedTimer))
 </script>
 
 <template>
@@ -69,8 +77,8 @@ async function copyLogs() {
 
       <div class="logs-actions">
         <StatusBadge v-if="live" label="Live" pulse tone="success" />
-        <button class="icon-btn" type="button" aria-label="Copy logs" @click="copyLogs">
-          <AppIcon name="copy" :size="16" />
+        <button class="icon-btn" :class="{ 'is-copied': copied }" type="button" :aria-label="copied ? 'Logs copied' : 'Copy logs'" @click="copyLogs">
+          <AppIcon :name="copied ? 'check' : 'copy'" :size="16" />
         </button>
       </div>
     </div>
@@ -104,6 +112,11 @@ async function copyLogs() {
 </template>
 
 <style scoped>
+.icon-btn.is-copied {
+  color: #22c78a;
+  border-color: rgba(34, 199, 138, 0.4);
+}
+
 .logs-card {
   width: 100%;
   min-width: 0;
